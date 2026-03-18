@@ -23,7 +23,7 @@
 #include <QDebug>
 
 K_PLUGIN_FACTORY_WITH_JSON(RetroTermKCMFactory,
-                            "metadata.json",
+                            "kcm_metadata.json",
                             registerPlugin<RetroTermKCM>();)
 
 // ══════════════════════════════════════════════════════════════════════════════

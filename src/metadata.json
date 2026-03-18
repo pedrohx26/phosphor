@@ -1,5 +1,6 @@
 {
     "KPackageStructure": "KWin/Effect",
+    "X-KDE-ConfigModule": "kcm_retro_term",
     "KPlugin": {
         "Authors": [{"Name": "retro-term", "Email": ""}],
         "Category": "Appearance",

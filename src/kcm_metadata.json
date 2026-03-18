@@ -1,0 +1,7 @@
+{
+    "KPlugin": {
+        "Name": "Retro Terminal (CRT)",
+        "Description": "Configuration module for the Retro Terminal KWin effect",
+        "License": "GPL-2.0-or-later"
+    }
+}
