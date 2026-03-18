@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║  phosphor — KWin Effect Build Script                                     ║
-# ║  Compileert en installeert automatisch, zonder IDE                         ║
+# ║  Compiles and installs automatically, no IDE needed                         ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-# Gebruik: ./build.sh [opties]
-#   --check-deps   Controleer vereisten zonder te bouwen
-#   --rebuild      Verwijder build/ en bouw opnieuw van nul
-#   --debug        Debug-build (meer logging in journalctl)
-#   --uninstall    Verwijder de geïnstalleerde plugin
-#   --prefix=PAD   Installatieprefix (standaard: /usr)
-#   --help         Dit helpscherm
+# Usage: ./build.sh [options]
+#   --check-deps   Check requirements without building
+#   --rebuild      Remove build/ and rebuild from scratch
+#   --debug        Debug build (more logging in journalctl)
+#   --uninstall    Remove the installed plugin
+#   --prefix=PATH  Installation prefix (default: /usr)
+#   --help         Show this help screen
 set -euo pipefail
 
 # ── Kleuren ───────────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ BOLD='\033[1m' DIM='\033[2m' NC='\033[0m'
 ok()    { echo -e "${G}[ ok ]${NC}  $*"; }
 info()  { echo -e "${C}[info]${NC}  $*"; }
 warn()  { echo -e "${Y}[warn]${NC}  $*"; }
-err()   { echo -e "${R}[fout]${NC}  $*" >&2; }
+err()   { echo -e "${R}[err ]${NC}  $*" >&2; }
 die()   { err "$*"; exit 1; }
 sep()   { echo -e "${DIM}──────────────────────────────────────────────────────${NC}"; }
 banner(){ echo -e "\n${BOLD}${C}▶ $*${NC}"; }
@@ -49,7 +49,7 @@ done
 # ══════════════════════════════════════════════════════════════════════════════
 if [[ $DO_UNINSTALL -eq 1 ]]; then
     banner "Uninstalling"
-    # Zoek de .so in de gebruikelijke locaties
+    # Look for the .so in common locations
     for d in \
         /usr/lib/qt6/plugins/kwin/effects/plugins \
         /usr/lib/kwin/effects/plugins \
@@ -57,16 +57,16 @@ if [[ $DO_UNINSTALL -eq 1 ]]; then
     do
         f="$d/kwin_effect_retro_term.so"
         if [[ -f "$f" ]]; then
-            sudo rm -f "$f" && ok "Verwijderd: $f" || warn "Kon niet verwijderen: $f"
+            sudo rm -f "$f" && ok "Removed: $f" || warn "Could not remove: $f"
         fi
     done
     sudo rm -rf /usr/share/kwin/effects/phosphor \
                 "$PREFIX/share/kwin/effects/phosphor" 2>/dev/null || true
-    ok "Data-directory verwijderd"
+    ok "Data directory removed"
     # Reloading KWin
     qdbus6 org.kde.KWin /KWin reconfigure 2>/dev/null || \
     qdbus  org.kde.KWin /KWin reconfigure 2>/dev/null || \
-    warn "Log uit en in om KWin te herladen"
+    warn "Log out and back in to reload KWin"
     exit 0
 fi
 
@@ -128,12 +128,12 @@ check_deps() {
              "/usr/lib/cmake/KF6CoreAddons"
 
     echo ""
-    echo -e "  ${BOLD}KWin headers (kwin pakket op Arch):${NC}"
+    echo -e "  ${BOLD}KWin headers (kwin package on Arch):${NC}"
     if [[ -f /usr/include/kwin/effect/effect.h ]]; then
         local kwin_ver
         kwin_ver=$(grep -r 'KWIN_VERSION_STRING' /usr/include/kwin/ 2>/dev/null \
-                   | head -1 | grep -oP '"[0-9.]+"' | tr -d '"' || echo "onbekend")
-        echo -e "  ${G}✓${NC} /usr/include/kwin/effect/effect.h  ${DIM}(versie: $kwin_ver)${NC}"
+                   | head -1 | grep -oP '"[0-9.]+"' | tr -d '"' || echo "unknown")
+        echo -e "  ${G}✓${NC} /usr/include/kwin/effect/effect.h  ${DIM}(version: $kwin_ver)${NC}"
     else
         echo -e "  ${R}✗${NC} /usr/include/kwin/effect/effect.h  ${DIM}→ sudo pacman -S kwin${NC}"
         (( n_fail++ ))
@@ -148,37 +148,37 @@ check_deps() {
 
     echo ""
     if [[ $n_fail -gt 0 ]]; then
-        err "$n_fail vereiste(n) ontbreken"
+        err "$n_fail requirement(s) missing"
         sep
-        echo -e "${BOLD}Installeer alles in één commando:${NC}"
+        echo -e "${BOLD}Install everything with one command:${NC}"
         echo ""
         echo -e "  sudo pacman -S cmake make gcc extra-cmake-modules \\"
         echo -e "                 kwin qt6-base kconfig kcoreaddons"
         return 1
     else
-        ok "Alle vereisten aanwezig ($((n_fail == 0 ? 1 : 0)) fouten)"
+        ok "All requirements present ($((n_fail == 0 ? 1 : 0)) errors)"
         return 0
     fi
 }
 
-# ── Voer altijd een dependency check uit ─────────────────────────────────────
-check_deps || die "Los de ontbrekende vereisten op en probeer opnieuw."
+# ── Always run a dependency check ─────────────────────────────────────────────
+check_deps || die "Fix missing requirements and try again."
 [[ $DO_CHECK -eq 1 ]] && exit 0
 
 # ══════════════════════════════════════════════════════════════════════════════
-# BOUWEN
+# BUILD
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Verwijder build-directory bij --rebuild
+# Remove build directory on --rebuild
 if [[ $DO_REBUILD -eq 1 && -d "$BUILD_DIR" ]]; then
-    banner "Herbouwen — build-directory verwijderen"
+    banner "Rebuilding — removing build directory"
     rm -rf "$BUILD_DIR"
 fi
 
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
-# ── CMake configuratie ────────────────────────────────────────────────────────
+# ── CMake configuration ───────────────────────────────────────────────────────
 banner "Configuring CMake ($BUILD_TYPE)"
 cmake "$SCRIPT_DIR" \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
@@ -190,18 +190,18 @@ sep
 
 # ── Compiling ────────────────────────────────────────────────────────────────
 JOBS=$(nproc 2>/dev/null || echo 4)
-banner "Compiling (${JOBS} kernen)"
+banner "Compiling (${JOBS} cores)"
 cmake --build . --parallel "$JOBS" -- VERBOSE=1 2>&1
 
 sep
 
-# ── Installeren ───────────────────────────────────────────────────────────────
+# ── Installing ────────────────────────────────────────────────────────────────
 banner "Installing to $PREFIX"
 sudo cmake --install . 2>&1
 
 sep
 
-# ── Verifiëren ────────────────────────────────────────────────────────────────
+# ── Verifying ─────────────────────────────────────────────────────────────────
 banner "Verifying installation"
 PLUGIN_FOUND=0
 for d in \
@@ -215,7 +215,7 @@ do
         break
     fi
 done
-[[ $PLUGIN_FOUND -eq 0 ]] && warn "Plugin .so not found — controleer cmake --install output"
+[[ $PLUGIN_FOUND -eq 0 ]] && warn "Plugin .so not found — check cmake --install output"
 
 SHADER_FOUND=0
 for d in \
@@ -228,7 +228,7 @@ do
         break
     fi
 done
-[[ $SHADER_FOUND -eq 0 ]] && warn "retro.frag niet gevonden"
+[[ $SHADER_FOUND -eq 0 ]] && warn "retro.frag not found"
 
 sep
 
@@ -239,40 +239,40 @@ if qdbus6 org.kde.KWin /KWin reconfigure 2>/dev/null; then
 elif qdbus org.kde.KWin /KWin reconfigure 2>/dev/null; then
     ok "Reloading KWin via qdbus"
 else
-    warn "KWin not reachable via D-Bus — log uit en in om het effect te activeren"
+    warn "KWin not reachable via D-Bus — log out and back in to activate the effect"
 fi
 
-# ── Autostart-entry voor automatisch herbouwen na KWin-update ────────────────
+# ── Autostart entry for automatic rebuild after KWin update ──────────────────
 AUTOSTART="$HOME/.config/autostart/phosphor-rebuild.desktop"
 mkdir -p "$(dirname "$AUTOSTART")"
 cat > "$AUTOSTART" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Name=Retro Term — KWin Effect Rebuild Check
-Comment=Recompiles phosphor als de KWin-versie is gewijzigd
+Comment=Recompiles phosphor if the KWin version changed
 Exec=bash -c 'kwin_ver=\$(pacman -Q kwin 2>/dev/null | awk "{print \$2}"); stamp="$BUILD_DIR/.kwin_ver"; [ "\$(cat \$stamp 2>/dev/null)" != "\$kwin_ver" ] && (cd ${SCRIPT_DIR} && ./build.sh --rebuild && echo \$kwin_ver > \$stamp) || true'
 X-KDE-autostart-condition=ksmserver
 Hidden=false
 DESKTOP
 ok "Autostart-entry: $AUTOSTART"
 
-# ── Samenvatting ──────────────────────────────────────────────────────────────
+# ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}${G}╔══════════════════════════════════════════════════════════╗"
 echo -e "║  Installation successful!                                   ║"
 echo -e "╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "  ${BOLD}Enable effect:${NC}"
-echo -e "  Systeeminstellingen → Werkruimte-effecten → '${BOLD}Phosphor CRT${NC}'"
+echo -e "  System Settings -> Workspace Behavior -> Screen Effects -> '${BOLD}Phosphor CRT${NC}'"
 echo ""
-echo -e "  ${BOLD}Of via commandoregel:${NC}"
+echo -e "  ${BOLD}Or via command line:${NC}"
 echo -e "  phosphor on"
 echo -e "  phosphor preset IBM_VGA"
 echo ""
-echo -e "  ${BOLD}Na een KWin-update herbouwen:${NC}"
+echo -e "  ${BOLD}Rebuild after a KWin update:${NC}"
 echo -e "  ./build.sh --rebuild"
-echo -e "  ${DIM}(of log uit/in — autostart-entry doet dit automatisch)${NC}"
+echo -e "  ${DIM}(or log out/in — autostart entry handles this automatically)${NC}"
 echo ""
-echo -e "  ${BOLD}Debug-logging bekijken:${NC}"
+echo -e "  ${BOLD}View debug logging:${NC}"
 echo -e "  ${DIM}journalctl -f | grep phosphor${NC}"
 echo ""

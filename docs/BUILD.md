@@ -106,50 +106,50 @@ retro-term preset IBM_VGA
 retro-term preset DEC_VT100
 retro-term preset AMIGA500
 retro-term set bloom 0.70
-retro-term set phosphorType 0     # 0=P1 groen  1=P3 amber  2=P4 wit  3=P39 radar
+retro-term set phosphorType 0     # 0=P1 green  1=P3 amber  2=P4 white  3=P39 radar
 retro-term set screenCurvature 0.3
 retro-term set warmupEnabled true
 retro-term set warmupDuration 12
 retro-term set targetClasses "konsole,alacritty"
-retro-term get                    # alle huidige instellingen tonen
+retro-term get                    # show all current settings
 ```
 
 ---
 
-## Na een KWin-update
+## After a KWin Update
 
-Na elke `pacman -Syu` die KWin bijwerkt, moet de plugin worden herbouwd. De autostart-entry
-doet dit automatisch bij de volgende login. Handmatig:
+After each `pacman -Syu` that updates KWin, the plugin should be rebuilt.
+The autostart entry does this automatically at the next login. Manual rebuild:
 
 ```bash
 ./build.sh --rebuild
 ```
 
-Debug-logging volgen:
+Follow debug logging:
 ```bash
 journalctl -f | grep retro-term
 ```
 
 ---
 
-## Hoe het werkt
+## How It Works
 
-De plugin implementeert de `KWin::Effect` C++20 interface en koppelt in op `paintWindow()`.
-Voor elk venster dat overeenkomt met `targetClasses` wordt:
+The plugin implements the `KWin::Effect` C++20 interface and hooks into `paintWindow()`.
+For each window that matches `targetClasses` it:
 
-1. De GLSL-shader geactiveerd via `ShaderManager::instance()->pushShader()`
-2. Alle 30 uniform-variabelen gezet per frame
-3. `effects->paintWindow()` aangeroepen — KWin rendert het venster door de shader
-4. Per-venster animatietimers bijgehouden voor warmup en degauss
+1. Activates the GLSL shader via `ShaderManager::instance()->pushShader()`
+2. Sets all uniforms each frame
+3. Calls `effects->paintWindow()` so KWin renders the window through the shader
+4. Tracks per-window animation timers for warmup and degauss
 
-De GLSL-shader implementeert in volgorde:
-barrel distortion, sync-vervorming, jitter, chromatische aberratie, karakter-smearing,
-bloom, ghosting, fosfor-persistentie, fosfor-tint, kleurtemperatuur, saturatie,
-contrast/helderheid, scanlines, statische ruis, flickering, vignette, schermglas-reflectie,
-burn-in, glowing line, warmup-animatie, degauss-animatie.
+The GLSL shader applies, in order:
+barrel distortion, sync distortion, jitter, chromatic aberration, character smearing,
+bloom, ghosting, phosphor persistence, phosphor tint, color temperature, saturation,
+contrast/brightness, scanlines, static noise, flickering, vignette, glass reflection,
+burn-in, glowing line, warmup animation, degauss animation.
 
 ---
 
-## Licentie
+## License
 
 GPL-2.0-or-later
