@@ -78,15 +78,18 @@ set_target_properties(kcm_retro_term PROPERTIES
 
 # ── Installation ──────────────────────────────────────────────────────────────
 
+# Plasma 6 on Arch/Garuda loads effect and KCM plugins from the Qt6 plugin tree.
+set(QT6_PLUGIN_ROOT "${CMAKE_INSTALL_FULL_LIBDIR}/qt6/plugins")
+
 # 1. Plugin .so  →  Qt plugin directory for KWin effects
 #    Arch: /usr/lib/qt6/plugins/kwin/effects/plugins/
 install(TARGETS kwin_effect_retro_term
-    DESTINATION ${KDE_INSTALL_PLUGINDIR}/kwin/effects/plugins
+    DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/plugins
 )
 
 # KCM .so for System Settings
 install(TARGETS kcm_retro_term
-    DESTINATION ${KDE_INSTALL_PLUGINDIR}/plasma/kcms/systemsettings_qwidgets
+    DESTINATION ${QT6_PLUGIN_ROOT}/plasma/kcms/systemsettings_qwidgets
 )
 
 # 2. Fragment shader  →  KWin data directory
