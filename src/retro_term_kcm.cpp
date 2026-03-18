@@ -725,8 +725,6 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
         if (m_targetResX) m_targetResX->setValue(p.targetResX);
         if (m_targetResY) m_targetResY->setValue(p.targetResY);
     }
-    // Scope mode: apply the target mode defined in the preset
-    setTargetMode(static_cast<TargetMode>(p.targetMode));
     markChanged();
 }
 
