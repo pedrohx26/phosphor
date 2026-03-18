@@ -226,7 +226,7 @@ sep
 
 # ── Installing ────────────────────────────────────────────────────────────────
 banner "Installing to $PREFIX"
-$ELEVATE cmake --install . 2>&1
+$ELEVATE cmake --install "$BUILD_DIR" 2>&1
 
 sep
 
