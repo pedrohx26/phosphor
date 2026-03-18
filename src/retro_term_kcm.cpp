@@ -720,11 +720,13 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     if (auto *s2 = m_spins.value("warmupDuration"))  s2->setValue(p.warmupDuration);
     if (auto *s2 = m_spins.value("degaussDuration")) s2->setValue(p.degaussDuration);
 
-    // Pixel scaling: vul originele resolutie in als het preset die heeft
+    // Pixel scaling: fill in original resolution if the preset specifies one
     if (p.targetResX > 0.0 && p.targetResY > 0.0) {
         if (m_targetResX) m_targetResX->setValue(p.targetResX);
         if (m_targetResY) m_targetResY->setValue(p.targetResY);
     }
+    // Scope mode: apply the target mode defined in the preset
+    setTargetMode(static_cast<TargetMode>(p.targetMode));
     markChanged();
 }
 

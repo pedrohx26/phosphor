@@ -70,9 +70,11 @@ struct PresetValues {
     double degaussDuration     = 2.5;
     QString font;
     int    fontSize            = 14;
-    // Pixel scaling: originele schermresolutie van het systeem
-    double targetResX          = 0.0;   // 0 = niet ingesteld (scaling uitgeschakeld)
+    // Pixel scaling: original screen resolution of the system
+    double targetResX          = 0.0;   // 0 = disabled
     double targetResY          = 0.0;
+    // Scope: which windows the effect applies to (TargetMode enum value)
+    int    targetMode          = static_cast<int>(TargetMode::Terminals);
 };
 
 // ── Slider + spinbox combo ────────────────────────────────────────────────────
