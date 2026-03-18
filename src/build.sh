@@ -183,11 +183,11 @@ check_deps() {
 check_deps || die "Fix missing requirements and try again."
 [[ $DO_CHECK -eq 1 ]] && exit 0
 
-# Prime sudo credential cache now so later `sudo cmake --install` never touches
-# the tty mid-build (killing the script while sudo is in raw-password mode
-# corrupts the terminal).
-info "Requesting sudo credentials (installation will need them)..."
-sudo -v || die "sudo authentication failed"
+# Never ask for sudo password from inside this script: interrupted password
+# prompts are what can leave the terminal in a broken input mode.
+if ! sudo -n true 2>/dev/null; then
+    die "sudo credentials not cached. Run 'sudo -v' in your terminal first, then re-run build.sh."
+fi
 
 # ══════════════════════════════════════════════════════════════════════════════
 # BUILD
@@ -221,6 +221,7 @@ sep
 
 # ── Installing ────────────────────────────────────────────────────────────────
 banner "Installing to $PREFIX"
+sudo -n true 2>/dev/null || die "sudo credentials expired during build. Run 'sudo -v' and retry."
 sudo cmake --install . 2>&1
 
 sep
