@@ -31,6 +31,37 @@ die()   { err "$*"; exit 1; }
 sep()   { echo -e "${DIM}──────────────────────────────────────────────────────${NC}"; }
 banner(){ echo -e "\n${BOLD}${C}▶ $*${NC}"; }
 
+run_as_root() {
+    if command -v pkexec >/dev/null 2>&1; then
+        if pkexec env \
+            DISPLAY="${DISPLAY:-}" \
+            XAUTHORITY="${XAUTHORITY:-}" \
+            XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
+            DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
+            PATH="$PATH" \
+            "$@"; then
+            return 0
+        fi
+        warn "pkexec authorization failed; falling back to GUI password dialog"
+    fi
+
+    local password=""
+    if command -v kdialog >/dev/null 2>&1; then
+        password=$(kdialog --title "Phosphor Installation" \
+            --password "Administrator password required to install/uninstall the Retro Terminal effect") || \
+            die "Authentication cancelled"
+    elif command -v zenity >/dev/null 2>&1; then
+        password=$(zenity --password --title="Phosphor Installation") || die "Authentication cancelled"
+    else
+        die "No graphical authentication helper found (pkexec, kdialog, zenity)"
+    fi
+
+    printf '%s\n' "$password" | command sudo -S -p '' -- "$@"
+    local rc=$?
+    password=""
+    return $rc
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="$SCRIPT_DIR/build"
 BUILD_TYPE="Release"
@@ -65,7 +96,7 @@ if [[ $DO_UNINSTALL -eq 1 ]]; then
     do
         f="$d/kwin_effect_retro_term.so"
         if [[ -f "$f" ]]; then
-            sudo rm -f "$f" && ok "Removed: $f" || warn "Could not remove: $f"
+            run_as_root rm -f "$f" && ok "Removed: $f" || warn "Could not remove: $f"
         fi
     done
     sudo rm -rf /usr/share/kwin/effects/phosphor \
@@ -183,17 +214,6 @@ check_deps() {
 check_deps || die "Fix missing requirements and try again."
 [[ $DO_CHECK -eq 1 ]] && exit 0
 
-# Use pkexec (graphical auth dialog) instead of sudo to avoid tty corruption
-# in VS Code terminal. Falls back to sudo if pkexec is unavailable.
-ELEVATE="pkexec"
-if ! command -v pkexec &>/dev/null; then
-    if sudo -n true 2>/dev/null; then
-        ELEVATE="sudo"
-    else
-        die "No pkexec found and sudo credentials not cached. Install polkit or run 'sudo -v' first."
-    fi
-fi
-
 # ══════════════════════════════════════════════════════════════════════════════
 # BUILD
 # ══════════════════════════════════════════════════════════════════════════════
@@ -226,7 +246,7 @@ sep
 
 # ── Installing ────────────────────────────────────────────────────────────────
 banner "Installing to $PREFIX"
-$ELEVATE cmake --install "$BUILD_DIR" 2>&1
+run_as_root cmake --install "$BUILD_DIR" 2>&1
 
 sep
 
