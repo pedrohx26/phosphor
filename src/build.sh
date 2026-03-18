@@ -12,6 +12,14 @@
 #   --help         Show this help screen
 set -euo pipefail
 
+# ── TTY guard — restore terminal state on exit/interrupt ──────────────────────
+_TTY_SAVED=$(stty -g 2>/dev/null || true)
+_tty_restore() {
+    [[ -n "$_TTY_SAVED" ]] && stty "$_TTY_SAVED" 2>/dev/null || stty sane 2>/dev/null || true
+    printf '\033[?25h'   # ensure cursor visible
+}
+trap '_tty_restore' EXIT INT TERM
+
 # ── Colors ────────────────────────────────────────────────────────────────────
 R='\033[0;31m' G='\033[0;32m' Y='\033[1;33m' C='\033[0;36m'
 BOLD='\033[1m' DIM='\033[2m' NC='\033[0m'
@@ -87,7 +95,9 @@ check_deps() {
     }
 
     chk_file() {
-        if find $3 -name "$1" 2>/dev/null | grep -q .; then
+        local result
+        result=$(find $3 -name "$1" 2>/dev/null) || true
+        if [[ -n "$result" ]]; then
             echo -e "  ${G}✓${NC} $1  ${DIM}(${3})${NC}"
         else
             echo -e "  ${R}✗${NC} $1  ${DIM}→ $2${NC}"
