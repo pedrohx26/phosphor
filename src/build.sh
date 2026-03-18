@@ -183,6 +183,12 @@ check_deps() {
 check_deps || die "Fix missing requirements and try again."
 [[ $DO_CHECK -eq 1 ]] && exit 0
 
+# Prime sudo credential cache now so later `sudo cmake --install` never touches
+# the tty mid-build (killing the script while sudo is in raw-password mode
+# corrupts the terminal).
+info "Requesting sudo credentials (installation will need them)..."
+sudo -v || die "sudo authentication failed"
+
 # ══════════════════════════════════════════════════════════════════════════════
 # BUILD
 # ══════════════════════════════════════════════════════════════════════════════
