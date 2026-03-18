@@ -268,8 +268,8 @@ done
 
 KCM_FOUND=0
 for d in \
-    "$PREFIX/lib/qt6/plugins/plasma/kcms/systemsettings_qwidgets" \
-    /usr/lib/qt6/plugins/plasma/kcms/systemsettings_qwidgets
+    "$PREFIX/lib/qt6/plugins/kwin/effects/configs" \
+    /usr/lib/qt6/plugins/kwin/effects/configs
 do
     if [[ -f "$d/kcm_retro_term.so" ]]; then
         ok "KCM: $d/kcm_retro_term.so"

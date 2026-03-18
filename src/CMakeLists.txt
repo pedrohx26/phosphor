@@ -87,9 +87,9 @@ install(TARGETS kwin_effect_retro_term
     DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/plugins
 )
 
-# KCM .so for System Settings
+# Effect config module for Desktop Effects "Settings" button
 install(TARGETS kcm_retro_term
-    DESTINATION ${QT6_PLUGIN_ROOT}/plasma/kcms/systemsettings_qwidgets
+    DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/configs
 )
 
 # 2. Fragment shader  →  KWin data directory
