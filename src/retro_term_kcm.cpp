@@ -72,7 +72,7 @@ void RetroTermKCM::buildPresets()
 {
     auto p = [&](PresetValues pv) { m_presets.append(pv); };
 
-    p({"Standaard (amber)","—",1,0.05,7000,0.10,0.25,0.35,0.04,1,0.35,0.50,0.55,0.20,0.50,0.80,0.08,0.10,0,0.05,0.08,0.00,0.20,0.20,0.10,0.08,0.20,true,8.0,true,2.5,"VT323",16,0.0,0.0});
+    p({"Default (amber)","—",1,0.05,7000,0.10,0.25,0.35,0.04,1,0.35,0.50,0.55,0.20,0.50,0.80,0.08,0.10,0,0.05,0.08,0.00,0.20,0.20,0.10,0.08,0.20,true,8.0,true,2.5,"VT323",16,0.0,0.0});
     p({"IBM 2260 (1964)","1964 — Eerste IBM videoterminaal",2,0.55,8500,0.60,0.45,0.65,0.12,0,0.35,0.50,0.80,0.45,0.42,0.90,0.18,0.25,1,0.20,0.22,0.00,0.00,0.00,0.15,0.30,0.50,true,15.0,true,4.0,"Glass TTY VT220",16,640.0,250.0});
     p({"DEC GT40 (1972)","1972 — Vectorterminal PDP-11, P39",3,0.40,7800,0.80,0.20,0.55,0.08,0,0.35,0.50,0.85,0.60,0.38,0.85,0.10,0.15,0,0.08,0.15,0.00,0.05,0.10,0.06,0.15,0.35,true,12.0,true,3.5,"VT323",18,1024.0,768.0});
     p({"DEC VT100 (1978)","1978 — Dé referentieterminal",0,0.12,8000,0.18,0.22,0.38,0.05,1,0.40,0.55,0.52,0.22,0.52,0.82,0.06,0.08,0,0.05,0.07,0.00,0.05,0.08,0.05,0.10,0.22,true,9.0,true,2.5,"VT323",18,800.0,240.0});
@@ -382,7 +382,7 @@ void RetroTermKCM::buildUI()
     // 1. MODUS — meest prominente keuze, helemaal bovenaan
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     {
-        auto *mgb = new QGroupBox(i18n("Op welke vensters werkt het effect?"));
+        auto *mgb = new QGroupBox(i18n("Which windows should receive the effect?"));
         mgb->setStyleSheet(
             QStringLiteral("QGroupBox { font-weight:bold; border:2px solid palette(highlight);"
                            " border-radius:4px; margin-top:8px; padding-top:6px; }"
@@ -393,31 +393,31 @@ void RetroTermKCM::buildUI()
         m_modeGroup = new QButtonGroup(this);
 
         m_modeOff = new QRadioButton(
-            i18n("Uit  —  geen venster krijgt het effect"));
+            i18n("Off  —  no window gets the effect"));
         m_modeOff->setToolTip(i18n(
-            "Het effect is geladen maar doet niets. "
-            "Handig om tijdelijk uit te zetten zonder de plugin te deactiveren."));
+            "The effect stays loaded but does nothing. "
+            "Useful for temporarily disabling it without unloading the plugin."));
         m_modeGroup->addButton(m_modeOff, static_cast<int>(TargetMode::Off));
 
         m_modeTerminals = new QRadioButton(
-            i18n("Alleen terminals  —  Konsole, Yakuake, kitty, Alacritty, …"));
+            i18n("Terminals only  —  Konsole, Yakuake, kitty, Alacritty, ..."));
         m_modeTerminals->setToolTip(i18n(
-            "Werkt op alle bekende terminal-emulators:\n%1")
+            "Applies to all known terminal emulators:\n%1")
             .arg(QString::fromLatin1(KNOWN_TERMINALS)));
         m_modeGroup->addButton(m_modeTerminals, static_cast<int>(TargetMode::Terminals));
 
         m_modeAll = new QRadioButton(
-            i18n("Alle vensters  —  elk venster op het scherm wordt retro"));
+            i18n("All windows  —  every on-screen window becomes retro"));
         m_modeAll->setToolTip(i18n(
-            "Elk venster dat KWin tekent krijgt het CRT-effect. "
-            "Ziet er spectaculair uit, maar is zwaarder op de GPU."));
+            "Every window rendered by KWin gets the CRT effect. "
+            "Looks great, but costs more GPU resources."));
         m_modeGroup->addButton(m_modeAll, static_cast<int>(TargetMode::AllWindows));
 
         m_modeCustom = new QRadioButton(
-            i18n("Aangepast  —  kies zelf welke applicaties"));
+            i18n("Custom  —  choose specific applications"));
         m_modeCustom->setToolTip(i18n(
-            "Geef een kommagescheiden lijst van WM_CLASS namen op.\n"
-            "Gebruik 'xprop WM_CLASS' om de klasse van een venster te vinden."));
+            "Enter a comma-separated list of WM_CLASS names.\n"
+            "Use 'xprop WM_CLASS' to find a window class name."));
         m_modeGroup->addButton(m_modeCustom, static_cast<int>(TargetMode::Custom));
 
         mvbox->addWidget(m_modeOff);
@@ -429,13 +429,13 @@ void RetroTermKCM::buildUI()
         m_customRow = new QWidget;
         auto *crow = new QHBoxLayout(m_customRow);
         crow->setContentsMargins(28, 2, 0, 2);
-        crow->addWidget(new QLabel(i18n("Vensterklassen:")));
+        crow->addWidget(new QLabel(i18n("Window classes:")));
         m_targetClasses = new QLineEdit;
         m_targetClasses->setPlaceholderText(
-            i18n("bijv. konsole,firefox,code  (kleine letters, kommagescheiden)"));
+            i18n("e.g. konsole,firefox,code  (lowercase, comma-separated)"));
         m_targetClasses->setToolTip(i18n(
-            "WM_CLASS namen. Zoek de naam op via:\n"
-            "  xprop WM_CLASS  (klik daarna op het venster)\n"
+            "WM_CLASS names. Find them via:\n"
+            "  xprop WM_CLASS  (then click the window)\n"
             "  qdbus6 org.kde.KWin /KWin org.kde.KWin.queryWindowInfo"));
         crow->addWidget(m_targetClasses, 1);
         mvbox->addWidget(m_customRow);
@@ -457,23 +457,21 @@ void RetroTermKCM::buildUI()
     // 2. PRESET-SELECTOR
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     {
-        auto *pgb = new QGroupBox(i18n("Historisch preset"));
+        auto *pgb = new QGroupBox(i18n("Historical preset"));
         auto *pfl = new QFormLayout(pgb);
 
         m_presetCombo = new QComboBox;
-        m_presetCombo->addItem(i18n("— Kies een preset —"));
+        m_presetCombo->addItem(i18n("— Choose a preset —"));
         for (const auto &pv : m_presets)
-            m_presetCombo->addItem(
-                pv.era.isEmpty() ? pv.name
-                                 : QStringLiteral("%1  (%2)").arg(pv.name, pv.era));
+            m_presetCombo->addItem(pv.name);
 
-        m_applyPreset = new QPushButton(i18n("Preset laden"));
+        m_applyPreset = new QPushButton(i18n("Load preset"));
         m_applyPreset->setEnabled(false);
 
-        m_applyKWin = new QPushButton(i18n("✓  Toepassen & KWin herladen"));
+        m_applyKWin = new QPushButton(i18n("✓  Apply & reload KWin"));
         m_applyKWin->setToolTip(i18n(
-            "Slaat alle instellingen op en herlaadt KWin "
-            "zodat het effect onmiddellijk actief wordt."));
+            "Saves all settings and reloads KWin "
+            "so the effect becomes active immediately."));
 
         pfl->addRow(i18n("Preset:"), m_presetCombo);
         auto *btnRow = new QHBoxLayout;
@@ -512,89 +510,89 @@ void RetroTermKCM::buildUI()
 
     { // Fosfory
         QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Fosfory en kleur"), fl);
+        auto *gb = makeGroup(i18n("Phosphor and color"), fl);
         auto *phc = new QComboBox;
-        phc->addItem(i18n("P1 — Helder groen (VT100, Wyse)"));
-        phc->addItem(i18n("P3 — Amber (IBM 3101, vroege terminals)"));
-        phc->addItem(i18n("P4 — Wit/room (MDA, Mac, VGA)"));
-        phc->addItem(i18n("P39 — Radar groen (lange nagloed)"));
-        fl->addRow(i18n("Fosforytype:"), phc);
+        phc->addItem(i18n("P1 — Bright green (VT100, Wyse)"));
+        phc->addItem(i18n("P3 — Amber (IBM 3101, early terminals)"));
+        phc->addItem(i18n("P4 — White/cream (MDA, Mac, VGA)"));
+        phc->addItem(i18n("P39 — Radar green (long persistence)"));
+        fl->addRow(i18n("Phosphor type:"), phc);
         m_combos["phosphorType"] = phc;
         connect(phc, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &RetroTermKCM::markChanged);
-        addParam(fl, i18n("Vergeeling:"),        0.0,  1.0,  0.01, "phosphorAgeing",      i18n("0=nieuw, 1=verweerd geel/bruin"));
-        addParam(fl, i18n("Kleurtemperatuur (K):"),3000,9300,50,   "colorTemperature",   i18n("3000=warm geel, 9300=koud blauw-wit"));
-        addParam(fl, i18n("Nagloed:"),           0.0,  1.0,  0.01, "phosphorPersistence", i18n("Hoe lang tekens na weergave zichtbaar blijven"));
+        addParam(fl, i18n("Aging:"),             0.0,  1.0,  0.01, "phosphorAgeing",      i18n("0=new, 1=aged yellow/brown"));
+        addParam(fl, i18n("Color temperature (K):"),3000,9300,50, "colorTemperature",   i18n("3000=warm yellow, 9300=cold blue-white"));
+        addParam(fl, i18n("Persistence:"),       0.0,  1.0,  0.01, "phosphorPersistence", i18n("How long phosphor glow remains visible"));
         vbox->addWidget(gb);
     }
     { // Geometrie
         QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Schermgeometrie"), fl);
-        addParam(fl, i18n("Barreldistorsie:"), 0.0, 1.0,  0.01, "screenCurvature",   i18n("0=vlak, 1=sterk gebogen"));
-        addParam(fl, i18n("Vignette:"),        0.0, 1.0,  0.01, "vignetteIntensity", i18n("Randverduistering"));
-        addParam(fl, i18n("Glasreflectie:"),   0.0, 0.30, 0.005,"ambientReflection", i18n("Spiegelreflectie van het schermglas"));
+        auto *gb = makeGroup(i18n("Screen geometry"), fl);
+        addParam(fl, i18n("Barrel distortion:"), 0.0, 1.0,  0.01, "screenCurvature",   i18n("0=flat, 1=strongly curved"));
+        addParam(fl, i18n("Vignette:"),          0.0, 1.0,  0.01, "vignetteIntensity", i18n("Edge darkening"));
+        addParam(fl, i18n("Glass reflection:"),  0.0, 0.30, 0.005,"ambientReflection", i18n("Screen glass reflection"));
         vbox->addWidget(gb);
     }
     { // Scanlines
         QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Scanlines / Rasterisatie"), fl);
+        auto *gb = makeGroup(i18n("Scanlines / Rasterization"), fl);
         auto *rc = new QComboBox;
-        rc->addItem(i18n("Geen")); rc->addItem(i18n("Scanlines (klassiek)"));
-        rc->addItem(i18n("Pixelraster (shadow mask)")); rc->addItem(i18n("Sub-pixel RGB (aperture grille)"));
-        fl->addRow(i18n("Modus:"), rc);
+        rc->addItem(i18n("None")); rc->addItem(i18n("Scanlines (classic)"));
+        rc->addItem(i18n("Pixel grid (shadow mask)")); rc->addItem(i18n("Sub-pixel RGB (aperture grille)"));
+        fl->addRow(i18n("Mode:"), rc);
         m_combos["rasterizationMode"] = rc;
         connect(rc, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &RetroTermKCM::markChanged);
-        addParam(fl, i18n("Intensiteit:"), 0.0, 1.0, 0.01, "scanlinesIntensity", i18n("Hoe donker de tussenruimten zijn"));
-        addParam(fl, i18n("Scherpte:"),    0.0, 1.0, 0.01, "scanlinesSharpness", i18n("0=zacht, 1=scherp"));
+        addParam(fl, i18n("Intensity:"), 0.0, 1.0, 0.01, "scanlinesIntensity", i18n("How dark the gaps are"));
+        addParam(fl, i18n("Sharpness:"), 0.0, 1.0, 0.01, "scanlinesSharpness", i18n("0=soft, 1=sharp"));
         vbox->addWidget(gb);
     }
     { // Bloom
         QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Bloom en gloed"), fl);
-        addParam(fl, i18n("Bloom:"),      0.0, 1.0, 0.01, "bloom",       i18n("Gloedhalo (13-tap Gaussian)"));
-        addParam(fl, i18n("Lijngloed:"), 0.0, 1.0, 0.01, "glowingLine", i18n("Horizontale lijngloed"));
-        addParam(fl, i18n("Helderheid:"),0.0, 1.0, 0.01, "brightness",  i18n("Algehele helderheid"));
+        auto *gb = makeGroup(i18n("Bloom and glow"), fl);
+        addParam(fl, i18n("Bloom:"),      0.0, 1.0, 0.01, "bloom",       i18n("Glow halo (13-tap Gaussian)"));
+        addParam(fl, i18n("Line glow:"),  0.0, 1.0, 0.01, "glowingLine", i18n("Horizontal line glow"));
+        addParam(fl, i18n("Brightness:"), 0.0, 1.0, 0.01, "brightness",  i18n("Overall brightness"));
         addParam(fl, i18n("Contrast:"),  0.0, 1.0, 0.01, "contrast",    i18n("Contrast"));
         vbox->addWidget(gb);
     }
     { // Ruis
         QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Ruis en synchronisatie-artefacten"), fl);
-        addParam(fl, i18n("Statische ruis:"), 0.0, 1.0,  0.01, "staticNoise",       i18n("Granulair beeldruis"));
-        addParam(fl, i18n("Jitter:"),         0.0, 1.0,  0.01, "jitter",            i18n("Per-pixel horizontale verschuiving"));
+        auto *gb = makeGroup(i18n("Noise and sync artifacts"), fl);
+        addParam(fl, i18n("Static noise:"), 0.0, 1.0,  0.01, "staticNoise",       i18n("Grain-like image noise"));
+        addParam(fl, i18n("Jitter:"),         0.0, 1.0,  0.01, "jitter",            i18n("Per-pixel horizontal offset"));
         auto *sc2 = new QComboBox;
-        sc2->addItem(i18n("Stabiel")); sc2->addItem(i18n("Sinusdrift")); sc2->addItem(i18n("Rolling scan")); sc2->addItem(i18n("Ghosting"));
-        fl->addRow(i18n("Sync-modus:"), sc2);
+        sc2->addItem(i18n("Stable")); sc2->addItem(i18n("Sine drift")); sc2->addItem(i18n("Rolling scan")); sc2->addItem(i18n("Ghosting"));
+        fl->addRow(i18n("Sync mode:"), sc2);
         m_combos["syncMode"] = sc2;
         connect(sc2, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &RetroTermKCM::markChanged);
-        addParam(fl, i18n("Sync-intensiteit:"),  0.0, 1.0,  0.01, "horizontalSync",    i18n("Sterkte van het artefact"));
-        addParam(fl, i18n("Flikkering:"),        0.0, 1.0,  0.01, "flickering",        i18n("50/60Hz helderheidsflikkering"));
-        addParam(fl, i18n("Ghost-intensiteit:"), 0.0, 0.5,  0.005,"ghostingIntensity", i18n("Frame-echo (alleen bij syncMode Ghosting)"));
+        addParam(fl, i18n("Sync intensity:"),  0.0, 1.0,  0.01, "horizontalSync",    i18n("Artifact strength"));
+        addParam(fl, i18n("Flicker:"),         0.0, 1.0,  0.01, "flickering",        i18n("50/60Hz brightness flicker"));
+        addParam(fl, i18n("Ghost intensity:"), 0.0, 0.5,  0.005,"ghostingIntensity", i18n("Frame echo (only in Ghosting sync mode)"));
         vbox->addWidget(gb);
     }
     { // Kleur
         QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Kleur en optische aberraties"), fl);
-        addParam(fl, i18n("Kleurretentie:"),    0.0, 1.0, 0.01, "chromaColor",       i18n("0=grijsschaal, 1=volledige kleur"));
-        addParam(fl, i18n("Verzadiging:"),      0.0, 1.0, 0.01, "saturationColor",   i18n("Extra kleurverzadiging"));
-        addParam(fl, i18n("Chrom. aberratie:"), 0.0, 1.0, 0.01, "rbgShift",          i18n("RGB-kanalen horizontaal verschoven"));
-        addParam(fl, i18n("Tekenvervaging:"),   0.0, 1.0, 0.01, "characterSmearing", i18n("Horizontale tekenvervaging"));
-        addParam(fl, i18n("Burn-in:"),          0.0, 1.0, 0.01, "burnIn",            i18n("Schermcentrum iets helderder"));
+        auto *gb = makeGroup(i18n("Color and optical aberrations"), fl);
+        addParam(fl, i18n("Color retention:"),  0.0, 1.0, 0.01, "chromaColor",       i18n("0=grayscale, 1=full color"));
+        addParam(fl, i18n("Saturation:"),       0.0, 1.0, 0.01, "saturationColor",   i18n("Additional color saturation"));
+        addParam(fl, i18n("Chrom. aberration:"),0.0, 1.0, 0.01, "rbgShift",          i18n("Horizontally shifted RGB channels"));
+        addParam(fl, i18n("Character smearing:"),0.0,1.0, 0.01, "characterSmearing", i18n("Horizontal character smearing"));
+        addParam(fl, i18n("Burn-in:"),          0.0, 1.0, 0.01, "burnIn",            i18n("Slightly brighter screen center"));
         vbox->addWidget(gb);
     }
     { // Animaties
         QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Animaties"), fl);
-        auto *wuc = new QCheckBox(i18n("CRT warmup-animatie bij openen venster"));
+        auto *gb = makeGroup(i18n("Animations"), fl);
+        auto *wuc = new QCheckBox(i18n("CRT warmup animation when opening a window"));
         fl->addRow(wuc); m_checks["warmupEnabled"] = wuc;
         connect(wuc, &QCheckBox::checkStateChanged, this, &RetroTermKCM::markChanged);
         auto *wus = new QDoubleSpinBox; wus->setRange(0.5,30.0); wus->setSuffix(i18n(" sec")); wus->setSingleStep(0.5); wus->setDecimals(1);
-        fl->addRow(i18n("Warmup-duur:"), wus); m_spins["warmupDuration"] = wus;
+        fl->addRow(i18n("Warmup duration:"), wus); m_spins["warmupDuration"] = wus;
         connect(wus, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RetroTermKCM::markChanged);
-        auto *dgc = new QCheckBox(i18n("Degauss-animatie bij openen venster"));
+        auto *dgc = new QCheckBox(i18n("Degauss animation when opening a window"));
         fl->addRow(dgc); m_checks["degaussOnStart"] = dgc;
         connect(dgc, &QCheckBox::checkStateChanged, this, &RetroTermKCM::markChanged);
         auto *dgs = new QDoubleSpinBox; dgs->setRange(0.5,10.0); dgs->setSuffix(i18n(" sec")); dgs->setSingleStep(0.5); dgs->setDecimals(1);
-        fl->addRow(i18n("Degauss-duur:"), dgs); m_spins["degaussDuration"] = dgs;
+        fl->addRow(i18n("Degauss duration:"), dgs); m_spins["degaussDuration"] = dgs;
         connect(dgs, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RetroTermKCM::markChanged);
         vbox->addWidget(gb);
     }
@@ -605,34 +603,34 @@ void RetroTermKCM::buildUI()
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     {
         QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Pixel scaling — originele schermresolutie simuleren"), fl);
+        auto *gb = makeGroup(i18n("Pixel scaling — simulate original screen resolution"), fl);
         gb->setToolTip(i18n(
-            "Schaalt het vensterbeeld terug naar de originele pixelresolutie van het "
-            "historische systeem en vergroot het weer op naar volledig scherm.\n"
-            "0.0 = geen schaling (modern scherm)\n"
-            "1.0 = pixel-exact origineel (blokpixels op ware grootte)\n"
-            "Tussenwaarden mengen beide weergaven."));
+            "Downscales the window image to the original pixel resolution of the "
+            "historical system, then scales it back up to full screen.\n"
+            "0.0 = no scaling (modern display)\n"
+            "1.0 = exact original pixels (true-size block pixels)\n"
+            "Values in between blend both views."));
 
         // Hoofdslider
         m_pixelScaleRow = new ParamRow(
-            i18n("Pixel schaal:"), 0.0, 1.0, 0.01,
-            i18n("0.0 = geen schaling  |  1.0 = pixel-exact origineel"),
+            i18n("Pixel scale:"), 0.0, 1.0, 0.01,
+            i18n("0.0 = no scaling  |  1.0 = exact original pixels"),
             gb);
-        fl->addRow(i18n("Pixel schaal:"), m_pixelScaleRow);
+        fl->addRow(i18n("Pixel scale:"), m_pixelScaleRow);
         connect(m_pixelScaleRow, &ParamRow::valueChanged,
                 this, &RetroTermKCM::markChanged);
 
         // Sampling-modus combobox
         m_sampleModeCombo = new QComboBox;
-        m_sampleModeCombo->addItem(i18n("Nearest-neighbour  —  harde blokpixels (klassiek)"));
-        m_sampleModeCombo->addItem(i18n("Bilineair  —  zacht, goed voor tussenwaarden"));
-        m_sampleModeCombo->addItem(i18n("Sharp bilineair  —  CRT-typisch: scherpe randen, geen aliasing"));
+        m_sampleModeCombo->addItem(i18n("Nearest-neighbour  —  hard block pixels (classic)"));
+        m_sampleModeCombo->addItem(i18n("Bilinear  —  smooth, good for mid values"));
+        m_sampleModeCombo->addItem(i18n("Sharp bilinear  —  CRT-like: crisp edges, low aliasing"));
         m_sampleModeCombo->setCurrentIndex(2);
         m_sampleModeCombo->setToolTip(i18n(
-            "Nearest: echte blokpixels zoals op de originele hardware.\n"
-            "Bilineair: zachte interpolatie, goed bij pixelScale 0.3–0.7.\n"
-            "Sharp bilineair: simuleert de Gaussiaanse elektronenbundel van een CRT — "
-            "scherpe pixelgrenzen maar zonder harde tanding. Aanbevolen."));
+            "Nearest: true block pixels like original hardware.\n"
+            "Bilinear: smooth interpolation, good at pixelScale 0.3–0.7.\n"
+            "Sharp bilinear: simulates a CRT Gaussian beam — "
+            "crisp pixel edges without harsh stair-stepping. Recommended."));
         fl->addRow(i18n("Sampling:"), m_sampleModeCombo);
         connect(m_sampleModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &RetroTermKCM::markChanged);
@@ -642,22 +640,22 @@ void RetroTermKCM::buildUI()
         m_targetResRow = new QWidget;
         auto *rhl = new QHBoxLayout(m_targetResRow);
         rhl->setContentsMargins(0, 0, 0, 0);
-        rhl->addWidget(new QLabel(i18n("Breedte:")));
+        rhl->addWidget(new QLabel(i18n("Width:")));
         m_targetResX = new QDoubleSpinBox;
         m_targetResX->setRange(40, 3840);
         m_targetResX->setDecimals(0);
         m_targetResX->setSingleStep(8);
         m_targetResX->setValue(320);
-        m_targetResX->setToolTip(i18n("Originele horizontale resolutie van het historische systeem (pixels)"));
+        m_targetResX->setToolTip(i18n("Original horizontal resolution of the historical system (pixels)"));
         rhl->addWidget(m_targetResX);
         rhl->addSpacing(12);
-        rhl->addWidget(new QLabel(i18n("Hoogte:")));
+        rhl->addWidget(new QLabel(i18n("Height:")));
         m_targetResY = new QDoubleSpinBox;
         m_targetResY->setRange(24, 2160);
         m_targetResY->setDecimals(0);
         m_targetResY->setSingleStep(8);
         m_targetResY->setValue(200);
-        m_targetResY->setToolTip(i18n("Originele verticale resolutie van het historische systeem (pixels)"));
+        m_targetResY->setToolTip(i18n("Original vertical resolution of the historical system (pixels)"));
         rhl->addWidget(m_targetResY);
         rhl->addStretch();
 
@@ -678,7 +676,7 @@ void RetroTermKCM::buildUI()
         addRes(i18n("640×480"),  640, 480);
         addRes(i18n("720×350"),  720, 350);
 
-        fl->addRow(i18n("Originele res.:"), m_targetResRow);
+        fl->addRow(i18n("Original res.:"), m_targetResRow);
 
         connect(m_targetResX, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                 this, &RetroTermKCM::markChanged);
@@ -687,8 +685,8 @@ void RetroTermKCM::buildUI()
 
         // Info-label
         auto *info = new QLabel(i18n(
-            "<small><i>Tip: laad een preset — de originele resolutie wordt automatisch ingevuld.<br>"
-            "Bij pixelScale = 0.0 heeft de resolutie geen effect.</i></small>"));
+            "<small><i>Tip: load a preset — original resolution is filled automatically.<br>"
+            "At pixelScale = 0.0, resolution has no visual effect.</i></small>"));
         info->setWordWrap(true);
         fl->addRow(QString(), info);
 
