@@ -183,10 +183,15 @@ check_deps() {
 check_deps || die "Fix missing requirements and try again."
 [[ $DO_CHECK -eq 1 ]] && exit 0
 
-# Never ask for sudo password from inside this script: interrupted password
-# prompts are what can leave the terminal in a broken input mode.
-if ! sudo -n true 2>/dev/null; then
-    die "sudo credentials not cached. Run 'sudo -v' in your terminal first, then re-run build.sh."
+# Use pkexec (graphical auth dialog) instead of sudo to avoid tty corruption
+# in VS Code terminal. Falls back to sudo if pkexec is unavailable.
+ELEVATE="pkexec"
+if ! command -v pkexec &>/dev/null; then
+    if sudo -n true 2>/dev/null; then
+        ELEVATE="sudo"
+    else
+        die "No pkexec found and sudo credentials not cached. Install polkit or run 'sudo -v' first."
+    fi
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -221,8 +226,7 @@ sep
 
 # ── Installing ────────────────────────────────────────────────────────────────
 banner "Installing to $PREFIX"
-sudo -n true 2>/dev/null || die "sudo credentials expired during build. Run 'sudo -v' and retry."
-sudo cmake --install . 2>&1
+$ELEVATE cmake --install . 2>&1
 
 sep
 
