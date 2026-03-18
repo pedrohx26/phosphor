@@ -1,4 +1,5 @@
 {
+    "KPackageStructure": "KWin/Effect",
     "KPlugin": {
         "Authors": [{"Name": "retro-term", "Email": ""}],
         "Category": "Appearance",
