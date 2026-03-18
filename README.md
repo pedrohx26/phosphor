@@ -1,4 +1,4 @@
-# Phosphor — KDE Plasma 6 C++ Effect Plugin
+# Phosphor — KDE Plasma 6 CRT Effect Plugin
 
 A CRT phosphor simulation as a compiled KWin 6 plugin.
 Appears in System Settings -> Workspace Behavior -> Screen Effects -> Phosphor CRT after installation.
