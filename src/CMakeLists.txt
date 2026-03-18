@@ -16,7 +16,8 @@ set(QT_DEFAULT_MAJOR_VERSION 6)
 include(KDEInstallDirs6)
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
-find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL Widgets DBus)
+find_package(KF6 REQUIRED COMPONENTS Config ConfigWidgets CoreAddons I18n KCMUtils)
 find_package(KWin REQUIRED)
 
 # Print what we found (useful for debugging build issues)
@@ -31,7 +32,7 @@ add_library(kwin_effect_retro_term MODULE
 # On Arch, KWin headers are in /usr/include/kwin/
 # KWin::kwin target should export these, but we add them explicitly as fallback
 target_include_directories(kwin_effect_retro_term PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
     /usr/include/kwin
 )
 
@@ -40,11 +41,38 @@ target_link_libraries(kwin_effect_retro_term PRIVATE
     Qt6::Gui
     Qt6::OpenGL
     Qt6::Widgets
+    KF6::ConfigCore
+    KF6::CoreAddons
     KWin::kwin
 )
 
 # The plugin file must not have a "lib" prefix — KWin loads it by exact name
 set_target_properties(kwin_effect_retro_term PROPERTIES
+    PREFIX ""
+)
+
+# ── KCM configuration module (Settings button) ───────────────────────────────
+add_library(kcm_retro_term MODULE
+    retro_term_kcm.cpp
+)
+
+target_include_directories(kcm_retro_term PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(kcm_retro_term PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::DBus
+    KF6::ConfigCore
+    KF6::ConfigWidgets
+    KF6::CoreAddons
+    KF6::I18n
+    KF6::KCMUtils
+)
+
+set_target_properties(kcm_retro_term PROPERTIES
     PREFIX ""
 )
 
@@ -56,13 +84,24 @@ install(TARGETS kwin_effect_retro_term
     DESTINATION ${KDE_INSTALL_PLUGINDIR}/kwin/effects/plugins
 )
 
+# KCM .so for System Settings
+install(TARGETS kcm_retro_term
+    DESTINATION ${KDE_INSTALL_PLUGINDIR}/plasma/kcms/systemsettings_qwidgets
+)
+
 # 2. Fragment shader  →  KWin data directory
 #    Arch: /usr/share/kwin/effects/retro-term/
-install(FILES src/retro.frag
+install(FILES retro.frag
     DESTINATION ${KDE_INSTALL_DATADIR}/kwin/effects/retro-term
 )
 
 # 3. Plugin metadata  →  same data directory
 install(FILES metadata.json
     DESTINATION ${KDE_INSTALL_DATADIR}/kwin/effects/retro-term
+)
+
+# KCM desktop service file
+configure_file(retro-term-kcm.desktop.in retro-term-kcm.desktop)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/retro-term-kcm.desktop"
+    DESTINATION ${KDE_INSTALL_DATADIR}/kservices6
 )

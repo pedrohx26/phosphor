@@ -7,6 +7,7 @@
         "Id": "retro-term",
         "License": "GPL-2.0-or-later",
         "Name": "Retro Terminal (CRT)",
-        "Version": "2.0"
+        "Version": "2.0",
+        "ConfigModule": "kcm_retro_term"
     }
 }

@@ -116,6 +116,8 @@ check_deps() {
     echo -e "  ${BOLD}Qt6:${NC}"
     chk_pkg "Qt6Core"      "sudo pacman -S qt6-base"
     chk_pkg "Qt6Gui"       "sudo pacman -S qt6-base"
+    chk_pkg "Qt6Widgets"   "sudo pacman -S qt6-base"
+    chk_pkg "Qt6DBus"      "sudo pacman -S qt6-base"
     chk_pkg "Qt6OpenGL"    "sudo pacman -S qt6-base"
 
     echo ""
@@ -126,6 +128,12 @@ check_deps() {
              "/usr/lib/cmake/KF6Config"
     chk_file "KF6CoreAddonsConfig.cmake" "sudo pacman -S kcoreaddons" \
              "/usr/lib/cmake/KF6CoreAddons"
+    chk_file "KF6KCMUtilsConfig.cmake" "sudo pacman -S kcmutils" \
+             "/usr/lib/cmake/KF6KCMUtils"
+    chk_file "KF6I18nConfig.cmake" "sudo pacman -S ki18n" \
+             "/usr/lib/cmake/KF6I18n"
+    chk_file "KF6ConfigWidgetsConfig.cmake" "sudo pacman -S kconfigwidgets" \
+             "/usr/lib/cmake/KF6ConfigWidgets"
 
     echo ""
     echo -e "  ${BOLD}KWin headers (kwin package on Arch):${NC}"
@@ -153,7 +161,7 @@ check_deps() {
         echo -e "${BOLD}Install everything with one command:${NC}"
         echo ""
         echo -e "  sudo pacman -S cmake make gcc extra-cmake-modules \\"
-        echo -e "                 kwin qt6-base kconfig kcoreaddons"
+        echo -e "                 kwin qt6-base kconfig kcoreaddons kcmutils ki18n kconfigwidgets"
         return 1
     else
         ok "All requirements present ($((n_fail == 0 ? 1 : 0)) errors)"
@@ -216,6 +224,19 @@ do
     fi
 done
 [[ $PLUGIN_FOUND -eq 0 ]] && warn "Plugin .so not found — check cmake --install output"
+
+KCM_FOUND=0
+for d in \
+    "$PREFIX/lib/qt6/plugins/plasma/kcms/systemsettings_qwidgets" \
+    /usr/lib/qt6/plugins/plasma/kcms/systemsettings_qwidgets
+do
+    if [[ -f "$d/kcm_retro_term.so" ]]; then
+        ok "KCM: $d/kcm_retro_term.so"
+        KCM_FOUND=1
+        break
+    fi
+done
+[[ $KCM_FOUND -eq 0 ]] && warn "KCM .so not found — check cmake --install output"
 
 SHADER_FOUND=0
 for d in \

@@ -7,7 +7,7 @@ Appears in System Settings -> Workspace Behavior -> Screen Effects -> Phosphor C
 
 ```bash
 # Install dependencies (Arch / Garuda)
-sudo pacman -S cmake make gcc extra-cmake-modules kwin qt6-base kconfig kcoreaddons
+sudo pacman -S cmake make gcc extra-cmake-modules kwin qt6-base kconfig kcoreaddons kcmutils ki18n kconfigwidgets
 
 # Build and install
 cd src
@@ -16,6 +16,7 @@ chmod +x build.sh
 ```
 
 Then enable: System Settings -> Workspace Behavior -> Screen Effects -> Phosphor CRT.
+Click Settings to access presets, scope mode, and sliders.
 
 ## Project Structure
 
@@ -28,6 +29,9 @@ phosphor/
 │   ├── metadata.json          KWin plugin metadata
 │   ├── retro_term_effect.h    C++ effect header
 │   ├── retro_term_effect.cpp  C++ effect implementation
+│   ├── retro_term_kcm.h       KCM UI header (presets + scope)
+│   ├── retro_term_kcm.cpp     KCM UI implementation
+│   ├── retro-term-kcm.desktop.in  KCM service descriptor
 │   └── retro.frag             GLSL 1.40 fragment shader with optional pixel scaling
 └── .gitignore
 ```
@@ -40,6 +44,7 @@ phosphor/
 - Warmup and degauss animations
 - Built-in pixel scaling (`pixelScale`, `targetRes`, `sampleMode`)
 - Per-window targeting via `targetClasses`
+- Preset and scope UI in System Settings (Off / Terminals / All / Custom)
 
 Pixel scaling behavior:
 
@@ -70,11 +75,14 @@ cd src
 | Qt6 Base + OpenGL | `qt6-base` |
 | KF6 Config | `kconfig` |
 | KF6 CoreAddons | `kcoreaddons` |
+| KF6 KCMUtils | `kcmutils` |
+| KF6 I18n | `ki18n` |
+| KF6 ConfigWidgets | `kconfigwidgets` |
 
 Install with:
 
 ```bash
-sudo pacman -S cmake make gcc extra-cmake-modules kwin qt6-base kconfig kcoreaddons
+sudo pacman -S cmake make gcc extra-cmake-modules kwin qt6-base kconfig kcoreaddons kcmutils ki18n kconfigwidgets
 ```
 
 ## What the Build Script Does
@@ -92,14 +100,27 @@ After `./build.sh`, files are installed to:
 
 ```text
 /usr/lib/qt6/plugins/kwin/effects/plugins/kwin_effect_retro_term.so
+/usr/lib/qt6/plugins/plasma/kcms/systemsettings_qwidgets/kcm_retro_term.so
 /usr/share/kwin/effects/retro-term/retro.frag
 /usr/share/kwin/effects/retro-term/metadata.json
+/usr/share/kservices6/retro-term-kcm.desktop
 ```
 
 ## Configuration
 
 All parameters are read from `~/.config/kwinrc` section `[Effect-retro-terminal]`.
-You can edit them with `kwriteconfig6` and then reload KWin.
+
+Primary workflow (recommended):
+
+1. Open System Settings -> Workspace Behavior -> Screen Effects.
+2. Enable Phosphor CRT.
+3. Click Settings.
+4. Pick a preset and scope mode (Off / Terminals / All / Custom).
+5. Apply & Reload KWin.
+
+Advanced CLI workflow (optional):
+
+You can edit values with `kwriteconfig6` and then reload KWin.
 
 Example:
 
