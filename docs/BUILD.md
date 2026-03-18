@@ -96,23 +96,26 @@ After `./build.sh`, files are installed to:
 
 ## Configuration
 
-All parameters are read from `~/.config/kwinrc` section `[Effect-retro-terminal]`
-and can be configured via the `retro-term` management script:
+All parameters are read from `~/.config/kwinrc` section `[Effect-retro-terminal]`.
+You can edit them with `kwriteconfig6` and then reload KWin.
+
+Example:
 
 ```bash
-retro-term on
-retro-term preset IBM_VGA
+kwriteconfig6 --file kwinrc --group Effect-retro-terminal --key phosphorType 0
+kwriteconfig6 --file kwinrc --group Effect-retro-terminal --key bloom 0.70
+kwriteconfig6 --file kwinrc --group Effect-retro-terminal --key screenCurvature 0.30
+kwriteconfig6 --file kwinrc --group Effect-retro-terminal --key warmupEnabled true
+kwriteconfig6 --file kwinrc --group Effect-retro-terminal --key targetClasses "konsole,alacritty"
+qdbus6 org.kde.KWin /KWin reconfigure
 ```
-retro-term preset DEC_VT100
-retro-term preset AMIGA500
-retro-term set bloom 0.70
-retro-term set phosphorType 0     # 0=P1 green  1=P3 amber  2=P4 white  3=P39 radar
-retro-term set screenCurvature 0.3
-retro-term set warmupEnabled true
-retro-term set warmupDuration 12
-retro-term set targetClasses "konsole,alacritty"
-retro-term get                    # show all current settings
-```
+
+Phosphor type values:
+
+- `0` = P1 green
+- `1` = P3 amber
+- `2` = P4 white
+- `3` = P39 radar
 
 ---
 

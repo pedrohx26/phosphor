@@ -12,7 +12,7 @@
 #   --help         Show this help screen
 set -euo pipefail
 
-# ── Kleuren ───────────────────────────────────────────────────────────────────
+# ── Colors ────────────────────────────────────────────────────────────────────
 R='\033[0;31m' G='\033[0;32m' Y='\033[1;33m' C='\033[0;36m'
 BOLD='\033[1m' DIM='\033[2m' NC='\033[0m'
 ok()    { echo -e "${G}[ ok ]${NC}  $*"; }
@@ -219,8 +219,8 @@ done
 
 SHADER_FOUND=0
 for d in \
-    "$PREFIX/share/kwin/effects/phosphor" \
-    /usr/share/kwin/effects/phosphor
+    "$PREFIX/share/kwin/effects/retro-term" \
+    /usr/share/kwin/effects/retro-term
 do
     if [[ -f "$d/retro.frag" ]]; then
         ok "Shader: $d/retro.frag"
@@ -266,13 +266,13 @@ echo -e "  ${BOLD}Enable effect:${NC}"
 echo -e "  System Settings -> Workspace Behavior -> Screen Effects -> '${BOLD}Phosphor CRT${NC}'"
 echo ""
 echo -e "  ${BOLD}Or via command line:${NC}"
-echo -e "  phosphor on"
-echo -e "  phosphor preset IBM_VGA"
+echo -e "  kwriteconfig6 --file kwinrc --group Effect-retro-terminal --key warmupEnabled true"
+echo -e "  qdbus6 org.kde.KWin /KWin reconfigure"
 echo ""
 echo -e "  ${BOLD}Rebuild after a KWin update:${NC}"
 echo -e "  ./build.sh --rebuild"
 echo -e "  ${DIM}(or log out/in — autostart entry handles this automatically)${NC}"
 echo ""
 echo -e "  ${BOLD}View debug logging:${NC}"
-echo -e "  ${DIM}journalctl -f | grep phosphor${NC}"
+echo -e "  ${DIM}journalctl -f | grep retro-term${NC}"
 echo ""
