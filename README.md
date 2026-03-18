@@ -1,21 +1,14 @@
 # Phosphor — KDE Plasma 6 CRT Shader Effect
 
-A nostalgic CRT phosphor simulation effect for KDE Plasma 6, featuring 46 historical presets, pixel scaling, and full GUI configuration.
+A KWin 6 CRT phosphor simulation plugin for KDE Plasma.
+
+This repository now contains a single implementation path. Pixel scaling is built in and can be configured per profile:
+
+- `pixelScale = 0.0` -> scaling off (modern/default look)
+- `pixelScale = 1.0` -> pixel-exact historical resolution
+- values between `0.0` and `1.0` -> blended transition
 
 ## Quick Start
-
-### Bash-only Installation (Recommended)
-Works immediately without compilation:
-
-```bash
-chmod +x phosphor  # (will add CLI script later)
-./phosphor install
-./phosphor on
-./phosphor preset C64
-```
-
-### C++ Compiled Version 
-Full build from source (requires Qt6 development environment):
 
 ```bash
 cd src
@@ -23,67 +16,46 @@ chmod +x build.sh
 ./build.sh
 ```
 
+Then enable in System Settings:
+
+`Workspace Behavior -> Screen Effects -> Phosphor CRT`
+
 ## Project Structure
 
 ```
 phosphor/
-├── src/                    KWin plugin (C++ & GLSL shader)
-│   ├── build.sh           Automated build & install
-│   ├── CMakeLists.txt     Build configuration
-│   ├── metadata.json      Plugin metadata
-│   ├── retro.frag         GLSL 1.40 fragment shader
-│   ├── retro_term_effect.h/.cpp   C++ plugin code
-│
-├── variants/              Alternative implementations
-│   └── retro-term-scale/  Pixel-perfect scaling variant
-│
-├── scripts/               CLI management tools
-│   └── (coming soon)
-│
-├── docs/                  Documentation
-│   ├── PROJECT.md         Main README
-│   └── VARIANTS.md        Variant documentation
-│
-└── .gitignore            Git configuration
+├── src/
+│   ├── build.sh
+│   ├── CMakeLists.txt
+│   ├── metadata.json
+│   ├── retro.frag
+│   ├── retro_term_effect.h
+│   └── retro_term_effect.cpp
+├── docs/
+│   └── BUILD.md
+├── scripts/
+└── .gitignore
 ```
-
-## Documentation
-
-- **[Project Overview](docs/PROJECT.md)** — Installation, usage, requirements
-- **[Build Guide](docs/PROJECT.md#build-options)** — Compilation instructions
-- **[Variants](docs/VARIANTS.md)** — Alternative versions & features
 
 ## Features
 
-- 46 historical phosphor presets (P1/P3/P4/P39)
+- CRT phosphor simulation (P1/P3/P4/P39)
 - Bloom, scanlines, barrel curvature
-- Sync artifacts, warmup & degauss animations
-- Pixel scaling (1x/2x/3x)
-- Full GUI configuration
-- Per-window targeting
+- Sync artifacts, flicker, jitter, burn-in
+- Warmup and degauss animations
+- Built-in pixel scaling (`pixelScale`, `targetRes`, `sampleMode`)
+- Per-window targeting via `targetClasses`
 
-## Requirements
+## Build Requirements
 
-### For Bash-only:
-- KWin 6 (included with KDE Plasma 6)
+Install on Arch/Garuda:
 
-### For C++ Build:
-- CMake ≥ 3.20
-- GCC/C++20
-- Qt6 + OpenGL
-- KDE Frameworks 6
-- KWin development headers
-
-Install on Arch:
 ```bash
-sudo pacman -S cmake gcc extra-cmake-modules kwin qt6-base kconfig kcoreaddons
+sudo pacman -S cmake make gcc extra-cmake-modules kwin qt6-base kconfig kcoreaddons
 ```
+
+Detailed instructions: `docs/BUILD.md`
 
 ## License
 
 GPL-2.0-or-later
-
-## Links
-
-- GitHub: https://github.com/pedrohx26/phosphor
-- KDE Plasma: https://kde.org/plasma

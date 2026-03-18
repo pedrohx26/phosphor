@@ -12,6 +12,7 @@ Appears in **System Settings → Workspace Behavior → Screen Effects → "Phos
 sudo pacman -S cmake make gcc extra-cmake-modules kwin qt6-base kconfig kcoreaddons
 
 # Build and install
+cd src
 chmod +x build.sh
 ./build.sh
 ```
@@ -24,14 +25,15 @@ Then enable: **System Settings → Workspace Behavior → Screen Effects → "Ph
 
 ```
 phosphor/
-├── build.sh                   Fully automated build and install script
-├── CMakeLists.txt             CMake configuration
-├── metadata.json              KWin plugin metadata
-├── README.md                  This documentation
+├── README.md                  Project overview
+├── docs/BUILD.md              This documentation
 └── src/
+    ├── build.sh               Fully automated build and install script
+    ├── CMakeLists.txt         CMake configuration
+    ├── metadata.json          KWin plugin metadata
     ├── retro_term_effect.h    C++ effect header
     ├── retro_term_effect.cpp  C++ effect implementation
-    └── retro.frag             GLSL 1.40 fragment shader
+    └── retro.frag             GLSL 1.40 fragment shader with optional pixel scaling
 ```
 
 ---
@@ -39,6 +41,7 @@ phosphor/
 ## Build Options
 
 ```bash
+cd src
 ./build.sh                   # Standard Release build + installation
 ./build.sh --check-deps      # Check dependencies only
 ./build.sh --rebuild         # Clean rebuild (delete build/)

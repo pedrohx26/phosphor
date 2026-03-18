@@ -106,6 +106,12 @@ void RetroTermEffect::loadConfig()
         if (!t.isEmpty()) m_targetClasses.append(t);
     }
 
+    // Pixel scaling
+    m_pixelScale  = (float)cfg.readEntry("pixelScale", 0.0);
+    m_targetResX  = (float)cfg.readEntry("targetResX", 320.0);
+    m_targetResY  = (float)cfg.readEntry("targetResY", 200.0);
+    m_sampleMode  = cfg.readEntry("sampleMode", 2);
+
     auto f = [&](const char *k, float d){ return (float)cfg.readEntry(k, (double)d); };
     auto i = [&](const char *k, int   d){ return cfg.readEntry(k, d); };
     auto b = [&](const char *k, bool  d){ return cfg.readEntry(k, d); };
@@ -150,6 +156,12 @@ void RetroTermEffect::reconfigure(ReconfigureFlags /*flags*/)
 bool RetroTermEffect::isTarget(EffectWindow *w) const
 {
     if (!w) return false;
+    // "*" means all windows.
+    if (m_targetClasses.size() == 1 && m_targetClasses.first() == u"*")
+        return true;
+    // Empty list means effect disabled.
+    if (m_targetClasses.isEmpty())
+        return false;
     const QString wc = w->windowClass().toLower();
     for (const QString &t : m_targetClasses)
         if (wc.contains(t)) return true;
@@ -225,6 +237,9 @@ void RetroTermEffect::paintWindow(const RenderTarget &renderTarget,
     m_shader->setUniform("burnIn",              m_burnIn);
     m_shader->setUniform("warmupProgress",      warmupP);
     m_shader->setUniform("degaussProgress",     degaussP);
+    m_shader->setUniform("pixelScale",          m_pixelScale);
+    m_shader->setUniform("targetRes",           QVector2D(m_targetResX, m_targetResY));
+    m_shader->setUniform("sampleMode",          m_sampleMode);
 
     // Paint the window — KWin's compositing pipeline renders it through our shader
     effects->paintWindow(renderTarget, viewport, w, mask, deviceRegion, data);

@@ -2,10 +2,8 @@
 // retro-term — KWin 6 GLSL 1.40 Fragment Shader
 //
 // KWin's ShaderManager (ShaderTrait::MapTexture) provides:
-//   in vec2 texcoord0;        — normalised [0,1] UV for the window texture
+//   in vec2 texcoord0;         — normalised [0,1] UV for the window texture
 //   uniform sampler2D sampler; — the window framebuffer texture (unit 0)
-//
-// All uniforms below are set each frame by RetroTermEffect::paintWindow().
 
 #version 140
 
@@ -13,7 +11,7 @@ in  vec2 texcoord0;
 out vec4 fragColor;
 
 uniform sampler2D sampler;
-uniform vec2  resolution;
+uniform vec2  resolution;       // venstergrootte in pixels
 uniform float time;
 
 // Phosphor
@@ -57,6 +55,16 @@ uniform float burnIn;
 uniform float warmupProgress;
 uniform float degaussProgress;
 
+// ── Pixel scaling ─────────────────────────────────────────────────────────────
+// pixelScale:   0.0 = geen schaling (modern),  1.0 = pixel-exact origineel
+// targetRes:    originele resolutie van het historische systeem (bv. 320×200)
+// sampleMode:   0 = nearest-neighbour (hard blokpixels)
+//               1 = bilineair (zacht, goed voor tussenwaarden)
+//               2 = sharp-bilineair (scherpe randen maar geen aliasing — CRT-typisch)
+uniform float pixelScale;
+uniform vec2  targetRes;
+uniform int   sampleMode;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Utility
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,7 +79,7 @@ float noise(vec2 p) {
     vec2 f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
     return mix(
-        mix(hash(i),             hash(i + vec2(1.0, 0.0)), f.x),
+        mix(hash(i),                  hash(i + vec2(1.0, 0.0)), f.x),
         mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
@@ -79,9 +87,63 @@ float rand(float s) { return fract(sin(s * 12.9898 + 78.233) * 43758.5453); }
 float lum(vec3 c)   { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CRT Effects
+// Pixel scaling — kernfunctie
+//
+// Leest de textuur met de gekozen sampling-modus op een UV die eventueel
+// gequantiseerd is naar het rooster van de originele resolutie.
+//
+// Theorie:
+//   Een CRT-pixel is geen harde blok. De electron-bundel heeft een Gaussiaans
+//   profiel. "Sharp bilinear" (modus 2) bootst dit na: binnen een pixelcel
+//   linear interpoleren, maar de overgang aan de celrand scherp houden via
+//   een smoothstep. Dit geeft het vertrouwde CRT-pixel-look zonder aliasing.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Quantiseer uv naar het rooster van targetRes, met een overgangszone
+// bepaald door pixelScale. Bij scale=0 → originele uv, scale=1 → volledig
+// gequantiseerd.
+vec2 scaleUV(vec2 uv) {
+    if (pixelScale < 0.001) return uv;
+
+    // Effectieve resolutie: interpoleer tussen vensterres en targetRes
+    vec2 effRes = mix(resolution, targetRes, pixelScale);
+
+    if (sampleMode == 0) {
+        // Nearest-neighbour: harde blokpixels
+        return (floor(uv * effRes) + 0.5) / effRes;
+    }
+    else if (sampleMode == 2) {
+        // Sharp bilinear (CRT-typisch):
+        // Bereken positie binnen de pixel in [0,1]
+        vec2 pos   = uv * effRes;
+        vec2 ipos  = floor(pos);
+        vec2 fpos  = fract(pos);
+        // Smoothstep geeft een scherpe overgang bij 0.5 maar vloeiend binnen de cel
+        float sharpness = mix(1.0, 6.0, pixelScale); // scherpte groeit met scale
+        vec2  curved = smoothstep(0.0, 1.0,
+            fpos * sharpness - (sharpness * 0.5 - 0.5));
+        curved = clamp(curved, 0.0, 1.0);
+        return (ipos + curved) / effRes;
+    }
+    else {
+        // Bilineair: gewoon de effectieve resolutie als sample-rooster gebruiken
+        // (standaard bilineaire filtering van de GPU doet de rest)
+        vec2 pos  = uv * effRes;
+        vec2 ipos = floor(pos);
+        vec2 fpos = fract(pos);
+        fpos = fpos * fpos * (3.0 - 2.0 * fpos); // smoothstep voor zachtere look
+        return (ipos + fpos) / effRes;
+    }
+}
+
+// Lees texel met pixel scaling toegepast
+vec4 sampleScaled(vec2 uv) {
+    return texture(sampler, scaleUV(uv));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRT-effecten
+// ─────────────────────────────────────────────────────────────────────────────
 vec2 barrel(vec2 uv) {
     if (screenCurvature < 0.001) return uv;
     vec2 cc = uv - 0.5;
@@ -103,23 +165,31 @@ vec3 colorTemp(vec3 col) {
     return clamp(col * mix(vec3(1.0, 0.75, 0.45), vec3(0.85, 0.90, 1.10), t), 0.0, 1.0);
 }
 
+// Scanlines werken op de effectieve resolutie als pixelScale actief is,
+// zodat de scanlijnen uitlijnen met de gescalede pixels
 float scanlines(vec2 uv) {
     if (rasterizationMode == 0) return 1.0;
-    float ph = fract(uv.y * resolution.y);
+
+    // Gebruik effectieve resolutie voor scanline-positionering
+    float effY = mix(resolution.y, targetRes.y, pixelScale);
+    float ph   = fract(uv.y * effY);
+
     if (rasterizationMode == 1) {
         float l = smoothstep(0.0, scanlinesSharpness + 0.01, ph)
                 * smoothstep(1.0, 1.0 - scanlinesSharpness - 0.01, ph);
         return mix(1.0, l, scanlinesIntensity);
     }
     if (rasterizationMode == 2) {
-        float px = smoothstep(0.0, 0.4, fract(uv.x * resolution.x))
-                 * smoothstep(1.0, 0.6, fract(uv.x * resolution.x));
+        float effX = mix(resolution.x, targetRes.x, pixelScale);
+        float px = smoothstep(0.0, 0.4, fract(uv.x * effX))
+                 * smoothstep(1.0, 0.6, fract(uv.x * effX));
         float py = smoothstep(0.0, 0.4, ph) * smoothstep(1.0, 0.6, ph);
         return mix(1.0, px * py, scanlinesIntensity);
     }
     return 1.0;
 }
 
+// Bloom gebruikt scaleUV zodat de gloed uitlijnt met de gescalede pixels
 vec3 applyBloom(vec2 uv) {
     if (bloom < 0.001) return vec3(0.0);
     float b = bloom * 0.012;
@@ -129,13 +199,13 @@ vec3 applyBloom(vec2 uv) {
     w[5]=w[6]=0.055; w[7]=w[8]=0.035; w[9]=w[10]=0.018; w[11]=w[12]=0.008;
     vec2 o[13];
     o[0]=vec2(0);
-    o[1]=vec2(b,0); o[2]=vec2(-b,0); o[3]=vec2(0,b); o[4]=vec2(0,-b);
-    o[5]=vec2(b,b); o[6]=vec2(-b,-b);
+    o[1]=vec2(b,0);     o[2]=vec2(-b,0);    o[3]=vec2(0,b);    o[4]=vec2(0,-b);
+    o[5]=vec2(b,b);     o[6]=vec2(-b,-b);
     o[7]=vec2(2.0*b,0); o[8]=vec2(-2.0*b,0);
     o[9]=vec2(0,2.0*b); o[10]=vec2(0,-2.0*b);
-    o[11]=vec2(b,2.0*b); o[12]=vec2(-b,-2.0*b);
+    o[11]=vec2(b,2.0*b);o[12]=vec2(-b,-2.0*b);
     for (int i = 0; i < 13; i++)
-        acc += texture(sampler, uv + o[i]).rgb * w[i];
+        acc += sampleScaled(uv + o[i]).rgb * w[i];
     return acc;
 }
 
@@ -168,7 +238,7 @@ vec3 applyDegauss(vec3 col, vec2 uv) {
     float sw = sin(atan(d.y, d.x) * 8.0 + time * 20.0) * (1.0 - p) * 0.04;
     vec2  suv = clamp(uv + normalize(d) * sw, 0.0, 1.0);
     float sp  = abs(sin(time * 12.0 + r * 15.0)) * (1.0 - p);
-    vec3  sc  = texture(sampler, suv).rgb;
+    vec3  sc  = sampleScaled(suv).rgb;
     float h   = fract(r * 3.0 + time * 2.0 + p);
     vec3  rb  = 0.5 + 0.5 * cos(6.2832 * (h + vec3(0.0, 0.333, 0.667)));
     return mix(col, mix(sc, rb, sp * 0.4), (1.0 - p) * 0.8);
@@ -178,6 +248,7 @@ vec3 applyDegauss(vec3 col, vec2 uv) {
 // Main
 // ─────────────────────────────────────────────────────────────────────────────
 void main() {
+    // 1. Barrel distortion (op originele UV)
     vec2 uv = barrel(texcoord0);
 
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
@@ -185,59 +256,72 @@ void main() {
         return;
     }
 
+    // 2. Sync distortion en jitter
     uv = syncDistort(uv);
     if (jitter > 0.001)
         uv += vec2((noise(vec2(uv.y * resolution.y, floor(time * 60.0))) - 0.5)
                    * jitter * 0.003, 0.0);
     uv = clamp(uv, 0.001, 0.999);
 
-    // Chromatic aberration
+    // 3. Pixel scaling + chromatic aberration
+    // rbgShift werkt ook op de gescalede UV zodat de aberratie uitlijnt met pixels
     vec3 col;
     if (rbgShift > 0.001) {
         float sh = rbgShift * 0.004;
-        col = vec3(texture(sampler, uv + vec2(sh,  0.0)).r,
-                   texture(sampler, uv).g,
-                   texture(sampler, uv - vec2(sh, 0.0)).b);
+        col = vec3(
+            sampleScaled(uv + vec2(sh,  0.0)).r,
+            sampleScaled(uv).g,
+            sampleScaled(uv - vec2(sh,  0.0)).b
+        );
     } else {
-        col = texture(sampler, uv).rgb;
+        col = sampleScaled(uv).rgb;
     }
 
-    // Character smearing
+    // 4. Character smearing (horizontale vervaging)
     if (characterSmearing > 0.001) {
-        vec2 px = vec2(1.0 / resolution.x, 0.0);
+        // Smearing-offset uitgedrukt in effectieve pixels
+        float effX = mix(resolution.x, targetRes.x, pixelScale);
+        vec2  px   = vec2(1.0 / effX, 0.0);
         col = mix(col,
-                  (texture(sampler, uv - px).rgb + col
-                   + texture(sampler, uv + px).rgb) / 3.0,
+                  (sampleScaled(uv - px).rgb + col
+                   + sampleScaled(uv + px).rgb) / 3.0,
                   characterSmearing);
     }
 
+    // 5. Bloom
     col += applyBloom(uv) * bloom;
 
+    // 6. Ghosting
     if (ghostingIntensity > 0.001 && syncMode == 3)
-        col += texture(sampler, uv + vec2(0.003, 0.0)).rgb * ghostingIntensity;
+        col += sampleScaled(uv + vec2(0.003, 0.0)).rgb * ghostingIntensity;
 
+    // 7. Fosfor-persistentie (nagloed)
     if (phosphorPersistence > 0.001) {
-        vec3 prev = texture(sampler, uv + vec2(0.0, 1.0 / resolution.y)).rgb * 0.6;
+        float effY  = mix(resolution.y, targetRes.y, pixelScale);
+        vec3  prev  = sampleScaled(uv + vec2(0.0, 1.0 / effY)).rgb * 0.6;
         col = mix(col, col + prev * phosphorPersistence, 0.35);
     }
 
-    // Phosphor tint + colour temperature + saturation
+    // 8. Fosfor-tint + kleurtemperatuur + saturatie
     float g = lum(col);
     col = mix(phosphorTint(vec3(g)), col, chromaColor);
     col = colorTemp(col);
     col = mix(vec3(lum(col)), col, 1.0 + saturationColor);
 
-    // Contrast / brightness
-    col = clamp((col - 0.5) * (contrast + 0.5) + 0.5 + (brightness - 0.5) * 0.4,
-                0.0, 1.0);
+    // 9. Contrast / helderheid
+    col = clamp((col - 0.5) * (contrast + 0.5) + 0.5
+                + (brightness - 0.5) * 0.4, 0.0, 1.0);
 
+    // 10. Scanlines — uitlijnen met effectieve resolutie
     col *= scanlines(uv);
 
+    // 11. Statische ruis
     if (staticNoise > 0.001)
         col += (noise(uv * resolution * 0.5
                 + vec2(fract(time / 51.0), fract(time / 237.0)) * 500.0)
                 - 0.5) * staticNoise * 0.15;
 
+    // 12. Flikkering
     if (flickering > 0.001) {
         float f = 0.9 + 0.1 * sin(time * 188.5)
                       + 0.05 * sin(time * 18.0)
@@ -245,11 +329,13 @@ void main() {
         col *= mix(1.0, f, flickering);
     }
 
+    // 13. Vignette
     if (vignetteIntensity > 0.001) {
         vec2 c = uv - 0.5;
         col *= 1.0 - dot(c, c) * vignetteIntensity * 2.5;
     }
 
+    // 14. Glasreflectie
     if (ambientReflection > 0.001) {
         vec2  hs = uv - vec2(0.85, 0.08);
         float sp = exp(-dot(hs, hs) * 20.0);
@@ -258,13 +344,18 @@ void main() {
                * ambientReflection;
     }
 
+    // 15. Burn-in
     if (burnIn > 0.001)
         col += col * (1.0 - length(uv - 0.5) * 0.8) * burnIn * 0.08;
 
-    if (glowingLine > 0.001)
-        col += vec3(exp(-abs(fract(uv.y * resolution.y / 25.0) - 0.5) * 80.0)
+    // 16. Glowing line
+    if (glowingLine > 0.001) {
+        float effY = mix(resolution.y, targetRes.y, pixelScale);
+        col += vec3(exp(-abs(fract(uv.y * effY / 25.0) - 0.5) * 80.0)
                     * glowingLine * 0.06);
+    }
 
+    // 17. Animaties
     col = applyWarmup(col, uv);
     col = applyDegauss(col, uv);
 

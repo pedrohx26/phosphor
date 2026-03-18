@@ -95,6 +95,12 @@ private:
     float  m_warmupDuration      = 8.0f;
     bool   m_degaussOnStart      = true;
     float  m_degaussDuration     = 2.5f;
+
+    // Pixel scaling
+    float  m_pixelScale          = 0.0f;   // 0=off, 1=pixel-exact
+    float  m_targetResX          = 320.0f; // original width
+    float  m_targetResY          = 200.0f; // original height
+    int    m_sampleMode          = 2;      // 0=nearest 1=bilinear 2=sharp-bilinear
 };
 
 } // namespace KWin
