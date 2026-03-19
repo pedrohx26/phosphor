@@ -76,7 +76,7 @@ void RetroTermKCM::buildPresets()
     p({"IBM 2260 (1964)","1964 — Eerste IBM videoterminaal",2,0.55,8500,0.60,0.45,0.65,0.12,0,0.35,0.50,0.80,0.45,0.42,0.90,0.18,0.25,1,0.20,0.22,0.00,0.00,0.00,0.15,0.30,0.50,true,15.0,true,4.0,"Glass TTY VT220",16,640.0,250.0});
     p({"DEC GT40 (1972)","1972 — Vectorterminal PDP-11, P39",3,0.40,7800,0.80,0.20,0.55,0.08,0,0.35,0.50,0.85,0.60,0.38,0.85,0.10,0.15,0,0.08,0.15,0.00,0.05,0.10,0.06,0.15,0.35,true,12.0,true,3.5,"VT323",18,1024.0,768.0});
     p({"DEC VT100 (1978)","1978 — Dé referentieterminal",0,0.12,8000,0.18,0.22,0.38,0.05,1,0.40,0.55,0.52,0.22,0.52,0.82,0.06,0.08,0,0.05,0.07,0.00,0.05,0.08,0.05,0.10,0.22,true,9.0,true,2.5,"VT323",18,800.0,240.0});
-    p({"IBM 3270 (1971)","1971 — IBM-mainframe blokmodus",0,0.18,8200,0.25,0.28,0.42,0.06,1,0.35,0.60,0.48,0.18,0.50,0.88,0.05,0.06,0,0.04,0.05,0.00,0.04,0.06,0.04,0.08,0.35,true,10.0,true,2.8,"PxPlus IBM 3270 Semi-Graphics",16});
+    p({"IBM 3270 (1971)","1971 — IBM-mainframe blokmodus",0,0.18,8200,0.25,0.28,0.42,0.06,1,0.35,0.60,0.48,0.18,0.50,0.88,0.05,0.06,0,0.04,0.05,0.00,0.04,0.06,0.04,0.08,0.35,true,10.0,true,2.8,"PxPlus IBM 3270 Semi-Graphics",16,720.0,350.0});
     p({"Wyse WY-50 (1979)","1979 — UNIX-werkterminal, P1",0,0.08,8400,0.14,0.18,0.32,0.04,1,0.38,0.65,0.55,0.20,0.55,0.85,0.04,0.06,0,0.03,0.05,0.00,0.04,0.08,0.04,0.08,0.20,true,8.0,true,2.5,"PxPlus Wyse WY700b 2x",16,720.0,360.0});
     p({"Militair Radar (1965)","1965 — SAGE-radar, P39",3,0.50,7000,0.90,0.15,0.70,0.10,0,0.35,0.50,0.90,0.70,0.35,0.95,0.15,0.20,0,0.10,0.18,0.00,0.04,0.08,0.06,0.20,0.55,true,20.0,true,5.0,"Share Tech Mono",16,1024.0,1024.0});
     p({"Apple II (1977)","1977 — NTSC-TV, composite",2,0.30,6500,0.22,0.38,0.50,0.08,1,0.55,0.35,0.65,0.28,0.48,0.78,0.14,0.18,1,0.12,0.14,0.00,0.45,0.35,0.18,0.35,0.28,true,10.0,true,3.0,"Print Char 21",16,280.0,192.0});
@@ -96,11 +96,6 @@ void RetroTermKCM::buildPresets()
     p({"SVGA Multisync (1992)","1992 — 800×600, shadow mask",2,0.06,7600,0.06,0.10,0.20,0.04,1,0.22,0.72,0.35,0.10,0.60,0.87,0.03,0.04,0,0.02,0.04,0.00,0.70,0.30,0.05,0.06,0.10,true,6.0,true,2.0,"Terminus",14,800.0,600.0});
     p({"Sony Trinitron (1997)","1989–1997 — Aperture-grille",2,0.05,7800,0.05,0.04,0.18,0.04,3,0.18,0.78,0.30,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.80,0.28,0.04,0.04,0.08,true,5.0,true,1.8,"Terminus",14,1024.0,768.0});
     p({"Teletext / Ceefax (1974)","1974 — PAL-TV, 8 kleuren",2,0.30,6200,0.20,0.40,0.52,0.09,1,0.62,0.28,0.70,0.30,0.46,0.76,0.20,0.24,2,0.18,0.20,0.12,0.80,0.55,0.22,0.40,0.28,true,12.0,true,3.5,"Bedstead",16,480.0,250.0});
-    p({"HAL 9000 — 2001 (1968)","1968 (film) — Koud, precies",2,0.05,9300,0.05,0.06,0.25,0.06,0,0.35,0.50,0.38,0.12,0.62,0.90,0.02,0.02,0,0.01,0.02,0.00,0.00,0.00,0.03,0.03,0.10,true,4.0,true,1.5,"Share Tech Mono",14,0.0,0.0});
-    p({"MU/TH/UR — Alien (1979)","1979 (film) — Verouderd groen",0,0.40,7500,0.45,0.12,0.65,0.10,0,0.35,0.50,0.82,0.50,0.38,0.92,0.12,0.15,1,0.12,0.14,0.00,0.04,0.06,0.08,0.18,0.45,true,15.0,true,4.0,"Share Tech Mono",16,0.0,0.0});
-    p({"WOPR — WarGames (1983)","1983 (film) — NORAD, militair",3,0.35,7200,0.70,0.22,0.68,0.08,1,0.45,0.45,0.78,0.45,0.36,0.94,0.14,0.18,1,0.16,0.18,0.00,0.04,0.06,0.10,0.22,0.50,true,14.0,true,4.5,"VT323",18,1024.0,1024.0});
-    p({"Blade Runner (1982)","1982 (film) — Dystopisch amber",1,0.35,5200,0.35,0.38,0.60,0.14,1,0.50,0.40,0.75,0.40,0.42,0.90,0.16,0.20,3,0.18,0.20,0.15,0.10,0.12,0.15,0.30,0.45,true,14.0,true,4.0,"Courier Prime",14,320.0,200.0});
-    p({"Matrix Terminal (1999)","1999 (film) — Uitgeblust groen",0,0.50,7500,0.55,0.18,0.70,0.06,0,0.35,0.50,0.88,0.60,0.35,0.96,0.18,0.22,1,0.15,0.20,0.00,0.04,0.08,0.08,0.20,0.60,true,16.0,true,5.0,"VT323",20,640.0,350.0});
     p({"Minimaal (laag GPU)","— Subtiel, min. belasting",1,0.05,7000,0.10,0.10,0.15,0.04,1,0.20,0.50,0.20,0.08,0.55,0.85,0.00,0.00,0,0.00,0.00,0.00,0.20,0.20,0.00,0.00,0.10,false,8.0,false,2.5,"Terminus",14,0.0,0.0});
 
     // ── Nieuwe presets: echte hardware, geverifieerde fonts ──────────────────
@@ -125,7 +120,7 @@ void RetroTermKCM::buildPresets()
     p({"Commodore PET 2001 (1977)","1977 — Eerste Commodore, ingebouwde 9\" wit-fosfor CRT",
        2,0.35,8500,0.12, 0.40,0.55,0.10, 1,0.52,0.58,
        0.65,0.18,0.55,0.90, 0.06,0.08,0,0.04,0.06,0.00,
-       0.00,0.00,0.05,0.12,0.38, true,11.0,true,3.0, "Pet Me 2Y",16});
+       0.00,0.00,0.05,0.12,0.38, true,11.0,true,3.0, "Pet Me 2Y",16,320.0,200.0});
 
     // TRS-80 Model I (1977)
     // Hardware: Motorola MC6847 video, composite naar gewone TV
@@ -138,7 +133,7 @@ void RetroTermKCM::buildPresets()
     p({"TRS-80 Model I (1977)","1977 — Tandy/RadioShack, composite naar TV, uppercase-only",
        2,0.28,6800,0.14, 0.35,0.48,0.08, 1,0.52,0.35,
        0.58,0.18,0.50,0.80, 0.14,0.15,1,0.10,0.12,0.00,
-       0.10,0.12,0.14,0.28,0.22, true,9.0,true,2.8, "Another Man's Treasure MIA",16});
+       0.10,0.12,0.14,0.28,0.22, true,9.0,true,2.8, "Another Man's Treasure MIA",16,384.0,192.0});
 
     // TRS-80 Color Computer (1980)
     // Hardware: MC6847, composite naar TV, later Tandy CM-2 monitor
@@ -150,7 +145,7 @@ void RetroTermKCM::buildPresets()
     p({"TRS-80 Color Computer (1980)","1980 — CoCo, MC6847, composite kleur-TV",
        2,0.25,6500,0.16, 0.35,0.46,0.08, 1,0.50,0.32,
        0.60,0.22,0.48,0.78, 0.13,0.16,1,0.11,0.13,0.00,
-       0.60,0.45,0.15,0.30,0.22, true,9.0,true,2.8, "Hot CoCo",16});
+       0.60,0.45,0.15,0.30,0.22, true,9.0,true,2.8, "Hot CoCo",16,256.0,192.0});
 
     // Kaypro II (1982)
     // Hardware: ingebouwde 9" green-phosphor CRT, Z80, CP/M
@@ -163,7 +158,7 @@ void RetroTermKCM::buildPresets()
     p({"Kaypro II (1982)","1982 — Draagbare CP/M, ingebouwde 9\" groene CRT",
        0,0.14,8100,0.16, 0.42,0.52,0.07, 1,0.44,0.60,
        0.58,0.22,0.50,0.86, 0.05,0.07,0,0.04,0.06,0.00,
-       0.00,0.00,0.04,0.08,0.25, true,9.0,true,2.8, "PxPlus Kaypro 2000",16});
+       0.00,0.00,0.04,0.08,0.25, true,9.0,true,2.8, "PxPlus Kaypro 2000",16,640.0,192.0});
 
     // Compaq Portable (1982)
     // Hardware: ingebouwde 9" amber CRT, eerste IBM-compatibele draagbare
@@ -176,7 +171,7 @@ void RetroTermKCM::buildPresets()
     p({"Compaq Portable (1982)","1982 — Eerste IBM-compatibele draagbare, 9\" amber CRT",
        1,0.18,5800,0.20, 0.40,0.50,0.08, 1,0.42,0.55,
        0.60,0.25,0.52,0.88, 0.06,0.08,0,0.04,0.06,0.00,
-       0.00,0.00,0.05,0.10,0.28, true,9.0,true,2.8, "PxPlus CompaqPort",16});
+       0.00,0.00,0.05,0.10,0.28, true,9.0,true,2.8, "PxPlus CompaqPort",16,640.0,200.0});
 
     // DEC Rainbow 100 (1982)
     // Hardware: VR201 monitor, P1 groen fosfor, 80×24, CP/M en DOS
@@ -189,7 +184,7 @@ void RetroTermKCM::buildPresets()
     p({"DEC Rainbow 100 (1982)","1982 — DEC's CP/M+DOS hybride, VR201 groene monitor",
        0,0.10,8200,0.14, 0.18,0.35,0.05, 1,0.38,0.62,
        0.52,0.18,0.55,0.86, 0.04,0.05,0,0.03,0.04,0.00,
-       0.00,0.00,0.04,0.08,0.18, true,8.0,true,2.5, "PxPlus DEC Rainbow100-8x10",16});
+       0.00,0.00,0.04,0.08,0.18, true,8.0,true,2.5, "PxPlus DEC Rainbow100-8x10",16,800.0,240.0});
 
     // TeleVideo 925 (1982)
     // Hardware: 12" green-phosphor CRT, 80×24, UNIX/CP/M kantoor-terminal
@@ -202,7 +197,7 @@ void RetroTermKCM::buildPresets()
     p({"TeleVideo TVI-925 (1982)","1982 — Populaire UNIX-terminal, 12\" P1 groen",
        0,0.07,8300,0.12, 0.20,0.34,0.04, 1,0.36,0.66,
        0.50,0.16,0.56,0.87, 0.04,0.05,0,0.03,0.04,0.00,
-       0.00,0.00,0.04,0.07,0.18, true,8.0,true,2.2, "PxPlus TeleVideo TVI-925",16});
+       0.00,0.00,0.04,0.07,0.18, true,8.0,true,2.2, "PxPlus TeleVideo TVI-925",16,720.0,360.0});
 
     // Apple Lisa (1983)
     // Hardware: Sony 12" CRT, P4 wit fosfor, 720×364, eerste GUI-computer van Apple
@@ -215,7 +210,7 @@ void RetroTermKCM::buildPresets()
     p({"Apple Lisa (1983)","1983 — Eerste Apple GUI-computer, Sony 12\" b/w CRT",
        2,0.10,8800,0.06, 0.14,0.38,0.08, 0,0.15,0.70,
        0.38,0.08,0.62,0.91, 0.02,0.03,0,0.02,0.03,0.00,
-       0.00,0.00,0.03,0.04,0.30, true,6.0,true,2.0, "LisaTerminal Paper",13});
+       0.00,0.00,0.03,0.04,0.30, true,6.0,true,2.0, "LisaTerminal Paper",13,720.0,364.0});
 
     // Amstrad PC1512 (1986)
     // Hardware: CTM640 kleurenmonitor of GT65 groene monitor
@@ -228,7 +223,7 @@ void RetroTermKCM::buildPresets()
     p({"Amstrad PC1512 (1986)","1986 — Goedkope Britse IBM-kloon, CTM640 kleurenmonitor",
        2,0.16,6800,0.12, 0.22,0.36,0.06, 1,0.42,0.48,
        0.52,0.20,0.52,0.82, 0.07,0.09,0,0.06,0.08,0.00,
-       0.70,0.42,0.08,0.14,0.18, true,8.0,true,2.5, "PxPlus Amstrad PC-2y",16});
+       0.70,0.42,0.08,0.14,0.18, true,8.0,true,2.5, "PxPlus Amstrad PC-2y",16,640.0,200.0});
 
     // Atari ST — SM124 mono (1985)
     // Hardware: SM124 monochroom monitor, 640×400, P4 wit fosfor
@@ -241,7 +236,7 @@ void RetroTermKCM::buildPresets()
     p({"Atari ST SM124 (1985)","1985 — Atari ST mono, SM124 wit fosfor, 640×400",
        2,0.08,8600,0.06, 0.08,0.28,0.05, 1,0.18,0.75,
        0.35,0.08,0.60,0.90, 0.02,0.03,0,0.02,0.03,0.00,
-       0.00,0.00,0.03,0.04,0.15, true,6.0,true,1.8, "Project Jason",14});
+       0.00,0.00,0.03,0.04,0.15, true,6.0,true,1.8, "Project Jason",14,640.0,400.0});
 
     // NEC APC III (1983)
     // Hardware: Japanse professionele PC, 12" groen-fosfor monitor, 640×400
@@ -254,7 +249,7 @@ void RetroTermKCM::buildPresets()
     p({"NEC APC III (1983)","1983 — Japanse professionele PC, 12\" P1 groen, 640×400",
        0,0.08,8400,0.10, 0.16,0.30,0.04, 1,0.32,0.68,
        0.46,0.14,0.58,0.88, 0.03,0.04,0,0.02,0.04,0.00,
-       0.00,0.00,0.04,0.06,0.14, true,7.0,true,2.0, "PxPlus NEC APC3 8x16",16});
+       0.00,0.00,0.04,0.06,0.14, true,7.0,true,2.0, "PxPlus NEC APC3 8x16",16,640.0,400.0});
 
     // HP 150 Touchscreen (1983)
     // Hardware: ingebouwde 9" CRT, P4 wit fosfor, HP-kwaliteitsglas
@@ -267,7 +262,7 @@ void RetroTermKCM::buildPresets()
     p({"HP 150 Touchscreen (1983)","1983 — HP's eerste touchscreen PC, 9\" b/w CRT",
        2,0.08,8700,0.07, 0.22,0.40,0.06, 1,0.40,0.62,
        0.48,0.14,0.60,0.89, 0.03,0.04,0,0.02,0.03,0.00,
-       0.00,0.00,0.04,0.06,0.24, true,7.0,true,2.0, "PxPlus HP 150",16});
+       0.00,0.00,0.04,0.06,0.24, true,7.0,true,2.0, "PxPlus HP 150",16,640.0,256.0});
 
     // Apple IIgs (1986)
     // Hardware: Apple RGB monitor A2M6014, shadow mask, 320×200 of 640×200
@@ -280,7 +275,7 @@ void RetroTermKCM::buildPresets()
     p({"Apple IIgs (1986)","1986 — Apple IIgs, RGB-monitor, 4096 kleuren",
        2,0.08,7400,0.08, 0.18,0.32,0.05, 1,0.36,0.55,
        0.48,0.14,0.56,0.85, 0.04,0.05,0,0.03,0.05,0.00,
-       0.75,0.45,0.07,0.10,0.14, true,7.0,true,2.0, "Shaston 320",14});
+       0.75,0.45,0.07,0.10,0.14, true,7.0,true,2.0, "Shaston 320",14,320.0,200.0});
 
     // Sharp MZ-700 (1982)
     // Hardware: ingebouwde 12" monitor (MZ-1D05), P4 wit of P1 groen afhankelijk van regio
@@ -292,7 +287,7 @@ void RetroTermKCM::buildPresets()
     p({"Sharp MZ-700 (1982)","1982 — Japanse Sharp, 12\" wit-fosfor CRT",
        2,0.12,8400,0.10, 0.26,0.40,0.06, 1,0.40,0.58,
        0.50,0.16,0.55,0.87, 0.05,0.06,0,0.03,0.05,0.00,
-       0.00,0.00,0.04,0.08,0.22, true,8.0,true,2.5, "Mizuno",14});
+       0.00,0.00,0.04,0.08,0.22, true,8.0,true,2.5, "Mizuno",14,320.0,200.0});
 
     // Mattel Aquarius (1983)
     // Hardware: composite naar TV, Zilog Z80, Mattel's mislukte home computer
@@ -305,7 +300,31 @@ void RetroTermKCM::buildPresets()
     p({"Mattel Aquarius (1983)","1983 — Mattel's mislukte home computer, composite-TV",
        2,0.22,6400,0.18, 0.36,0.48,0.08, 1,0.54,0.30,
        0.62,0.22,0.48,0.78, 0.18,0.18,1,0.14,0.14,0.00,
-       0.55,0.38,0.16,0.35,0.24, true,10.0,true,3.0, "Antiquarius",16});
+       0.55,0.38,0.16,0.35,0.24, true,10.0,true,3.0, "Antiquarius",16,320.0,200.0});
+
+    // Commodore VIC-20 (1981)
+    // Hardware: MOS 6560/6561 (VIC), composite naar TV
+    // Font: C64 Pro Mono — shares Commodore character ROM lineage
+    p({"Commodore VIC-20 (1981)","1981 — First color Commodore home computer",
+       2,0.28,6000,0.20, 0.40,0.52,0.09, 1,0.58,0.30,
+       0.68,0.30,0.46,0.75, 0.16,0.20,1,0.15,0.16,0.00,
+       0.50,0.42,0.20,0.38,0.22, true,10.0,true,3.0, "C64 Pro Mono",16});
+
+    // MSX (1983)
+    // Hardware: TMS9918 video, composite naar TV
+    // Font: VT323 — similar to common MSX screen fonts
+    p({"MSX (1983)","1983 — Japanese home computer standard (Sony, Philips, Panasonic)",
+       2,0.24,6500,0.18, 0.35,0.46,0.07, 1,0.52,0.36,
+       0.62,0.24,0.50,0.79, 0.12,0.14,1,0.10,0.12,0.00,
+       0.58,0.42,0.15,0.28,0.22, true,9.0,true,2.8, "VT323",14});
+
+    // Sun-3 Workstation (1985)
+    // Hardware: Sun GX framebuffer, monochrome or grayscale CRT
+    // Font: Lucida Console — common UNIX workstation font
+    p({"Sun-3 Workstation (1985)","1985 — UNIX workstation, GX framebuffer",
+       2,0.12,8200,0.08, 0.10,0.25,0.04, 1,0.28,0.68,
+       0.40,0.12,0.58,0.86, 0.03,0.04,0,0.02,0.04,0.00,
+       0.00,0.00,0.04,0.06,0.12, true,6.0,true,2.0, "Lucida Console",14});
 
 }
 
@@ -718,10 +737,14 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     if (auto *s2 = m_spins.value("warmupDuration"))  s2->setValue(p.warmupDuration);
     if (auto *s2 = m_spins.value("degaussDuration")) s2->setValue(p.degaussDuration);
 
-    // Pixel scaling: fill in original resolution if the preset specifies one
+    // Pixel scaling: fill in original resolution and enable scaling if preset has one
     if (p.targetResX > 0.0 && p.targetResY > 0.0) {
         if (m_targetResX) m_targetResX->setValue(p.targetResX);
         if (m_targetResY) m_targetResY->setValue(p.targetResY);
+        if (m_pixelScaleRow) m_pixelScaleRow->setValue(0.7);
+        if (m_sampleModeCombo) m_sampleModeCombo->setCurrentIndex(2);
+    } else {
+        if (m_pixelScaleRow) m_pixelScaleRow->setValue(0.0);
     }
     markChanged();
 }
