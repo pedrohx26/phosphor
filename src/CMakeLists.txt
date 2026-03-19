@@ -98,10 +98,9 @@ install(FILES retro.frag
     DESTINATION ${KDE_INSTALL_DATADIR}/kwin/effects/retro-term
 )
 
-# 3. Plugin metadata  →  same data directory
-install(FILES metadata.json
-    DESTINATION ${KDE_INSTALL_DATADIR}/kwin/effects/retro-term
-)
+# Note: metadata.json is NOT installed separately — it is embedded in the binary
+# plugin via Q_PLUGIN_METADATA. Installing it to the data dir would cause KWin
+# to treat it as a scripted effect package, conflicting with the binary plugin.
 
 # KCM desktop service file
 configure_file(retro-term-kcm.desktop.in retro-term-kcm.desktop)
