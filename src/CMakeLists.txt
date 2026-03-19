@@ -51,16 +51,16 @@ set_target_properties(kwin_effect_retro_term PROPERTIES
     PREFIX ""
 )
 
-# ── KCM configuration module (Settings button) ───────────────────────────────
-add_library(kcm_retro_term MODULE
+# ── Effect configuration module (Settings button) ────────────────────────────
+add_library(kwin_retro_term_config MODULE
     retro_term_kcm.cpp
 )
 
-target_include_directories(kcm_retro_term PRIVATE
+target_include_directories(kwin_retro_term_config PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(kcm_retro_term PRIVATE
+target_link_libraries(kwin_retro_term_config PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
@@ -72,7 +72,7 @@ target_link_libraries(kcm_retro_term PRIVATE
     KF6::KCMUtils
 )
 
-set_target_properties(kcm_retro_term PROPERTIES
+set_target_properties(kwin_retro_term_config PROPERTIES
     PREFIX ""
 )
 
@@ -88,7 +88,7 @@ install(TARGETS kwin_effect_retro_term
 )
 
 # Effect config module for Desktop Effects "Settings" button
-install(TARGETS kcm_retro_term
+install(TARGETS kwin_retro_term_config
     DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/configs
 )
 

@@ -271,8 +271,8 @@ for d in \
     "$PREFIX/lib/qt6/plugins/kwin/effects/configs" \
     /usr/lib/qt6/plugins/kwin/effects/configs
 do
-    if [[ -f "$d/kcm_retro_term.so" ]]; then
-        ok "KCM: $d/kcm_retro_term.so"
+    if [[ -f "$d/kwin_retro_term_config.so" ]]; then
+        ok "KCM: $d/kwin_retro_term_config.so"
         KCM_FOUND=1
         break
     fi

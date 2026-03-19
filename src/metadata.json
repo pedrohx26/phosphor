@@ -1,6 +1,6 @@
 {
     "KPackageStructure": "KWin/Effect",
-    "X-KDE-ConfigModule": "kcm_retro_term",
+    "X-KDE-ConfigModule": "kwin_retro_term_config",
     "KPlugin": {
         "Authors": [{"Name": "retro-term", "Email": ""}],
         "Category": "Appearance",
@@ -10,7 +10,7 @@
         "License": "GPL-2.0-or-later",
         "Name": "Retro Terminal (CRT)",
         "Version": "2.0",
-        "ConfigModule": "kcm_retro_term"
+        "ConfigModule": "kwin_retro_term_config"
     },
     "org.kde.kwin.effect": {
         "enabledByDefault": false
