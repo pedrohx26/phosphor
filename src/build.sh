@@ -99,8 +99,18 @@ if [[ $DO_UNINSTALL -eq 1 ]]; then
             run_as_root rm -f "$f" && ok "Removed: $f" || warn "Could not remove: $f"
         fi
     done
-    sudo rm -rf /usr/share/kwin/effects/phosphor \
-                "$PREFIX/share/kwin/effects/phosphor" 2>/dev/null || true
+        run_as_root rm -rf /usr/share/kwin/effects/retro-term \
+                  "$PREFIX/share/kwin/effects/retro-term" \
+                  /usr/lib/qt6/plugins/kwin/effects/configs/kwin_retro_term_config.so \
+                  /usr/lib/qt6/plugins/kwin/effects/configs/kcm_retro_term.so \
+                  /usr/lib/qt6/plugins/plasma/kcms/systemsettings_qwidgets/kcm_retro_term.so \
+                  /usr/lib/qt/plugins/kwin/effects/plugins/kwin_effect_retro_term.so \
+                  /usr/lib/qt/plugins/plasma/kcms/systemsettings_qwidgets/kcm_retro_term.so \
+                  /usr/share/kwin/effects/retro-term/metadata.json \
+                  "$PREFIX/share/kwin/effects/retro-term/metadata.json" 2>/dev/null || true
+
+        rm -rf "$HOME/.local/share/kwin/effects/retro-term.local-backup-20260319" \
+            "$HOME/.local/share/kwin/effects/retro-terminal.backup-20260318" 2>/dev/null || true
     ok "Data directory removed"
     # Reloading KWin
     qdbus6 org.kde.KWin /KWin reconfigure 2>/dev/null || \
@@ -247,6 +257,27 @@ sep
 # ── Installing ────────────────────────────────────────────────────────────────
 banner "Installing to $PREFIX"
 run_as_root cmake --install "$BUILD_DIR" 2>&1
+
+sep
+
+# ── Cleanup stale/conflicting installs ────────────────────────────────────────
+banner "Cleaning stale installs"
+# Keep only the canonical Plasma 6 paths and remove old/duplicate copies that
+# can shadow discovery in Desktop Effects.
+run_as_root rm -f \
+    /usr/lib/qt/plugins/kwin/effects/plugins/kwin_effect_retro_term.so \
+    /usr/lib/qt/plugins/plasma/kcms/systemsettings_qwidgets/kcm_retro_term.so \
+    /usr/lib/qt6/plugins/plasma/kcms/systemsettings_qwidgets/kcm_retro_term.so \
+    /usr/lib/qt6/plugins/kwin/effects/configs/kcm_retro_term.so \
+    /usr/share/kwin/effects/retro-term/metadata.json \
+    "$PREFIX/share/kwin/effects/retro-term/metadata.json" 2>/dev/null || true
+
+# These backup directories are still scanned by KPackage and can trigger false
+# metadata errors, so remove them automatically.
+rm -rf "$HOME/.local/share/kwin/effects/retro-term.local-backup-20260319" \
+       "$HOME/.local/share/kwin/effects/retro-terminal.backup-20260318" 2>/dev/null || true
+
+ok "Removed stale plugin/KCM copies and backup metadata directories"
 
 sep
 
