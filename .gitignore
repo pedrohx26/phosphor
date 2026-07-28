@@ -1,3 +1,7 @@
+# AUR publish script & working directory
+aur-publish.sh
+.aur/
+
 # Build directories
 build/
 */build/
@@ -35,3 +39,20 @@ dist/
 
 # OS
 .Thumbs.db
+# CocoIndex Code (ccc)
+/.cocoindex_code/
+
+# tool caches / generated artifacts
+graphify-out/
+
+# editor / agent / local-tool state
+.githooks
+.github
+.omc
+.omg
+.omx
+.vscode
+mcp-server/
+.gsd
+.claude
+.bg-shell
