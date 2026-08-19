@@ -46,9 +46,11 @@ target_link_libraries(kwin_effect_retro_term PRIVATE
     KWin::kwin
 )
 
-# The plugin file must not have a "lib" prefix — KWin loads it by exact name
+# The output filename must match the "Id" in metadata.json ("retro-term") so
+# KPluginMetaData derives the correct pluginId.  KWin looks up effects by this Id.
 set_target_properties(kwin_effect_retro_term PROPERTIES
     PREFIX ""
+    OUTPUT_NAME "retro-term"
 )
 
 # ── Effect configuration module (Settings button) ────────────────────────────
@@ -82,20 +84,35 @@ set_target_properties(kwin_retro_term_config PROPERTIES
 set(QT6_PLUGIN_ROOT "${CMAKE_INSTALL_FULL_LIBDIR}/qt6/plugins")
 
 # 1. Plugin .so  →  Qt plugin directory for KWin effects
-#    Arch: /usr/lib/qt6/plugins/kwin/effects/plugins/
+#    kwin_x11 loads from kwin-x11/effects/plugins/;
+#    kwin_wayland / unified kwin loads from kwin/effects/plugins/.
+#    Install to both so the same build works regardless of compositor.
 install(TARGETS kwin_effect_retro_term
     DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/plugins
+)
+install(TARGETS kwin_effect_retro_term
+    DESTINATION ${QT6_PLUGIN_ROOT}/kwin-x11/effects/plugins
 )
 
 # Effect config module for Desktop Effects "Settings" button
 install(TARGETS kwin_retro_term_config
     DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/configs
 )
+install(TARGETS kwin_retro_term_config
+    DESTINATION ${QT6_PLUGIN_ROOT}/kwin-x11/effects/configs
+)
 
 # 2. Fragment shader  →  KWin data directory
 #    Arch: /usr/share/kwin/effects/retro-term/
+#    KWin's ShaderManager::resolveShaderFilePath() appends "_core" to the
+#    basename when the GLSL version is >= 1.40 (desktop) or >= 3.00 ES.
+#    So the shader is installed twice: retro.frag (legacy) and retro_core.frag.
 install(FILES retro.frag
     DESTINATION ${KDE_INSTALL_DATADIR}/kwin/effects/retro-term
+)
+install(FILES retro.frag
+    DESTINATION ${KDE_INSTALL_DATADIR}/kwin/effects/retro-term
+    RENAME retro_core.frag
 )
 
 # Note: metadata.json is NOT installed separately — it is embedded in the binary

@@ -12,26 +12,9 @@
 #include <QFile>
 #include <QStandardPaths>
 // ── Factory macro — tells KWin how to instantiate this plugin ────────────────
-// K_PLUGIN_FACTORY_WITH_JSON must be at global scope (outside any namespaces)
-// for Qt's plugin system to find it.
-#include <KPluginFactory>
-
-class RetroTermEffectFactory : public KPluginFactory
-{
-    Q_OBJECT
-    Q_PLUGIN_METADATA(IID KPluginFactory_iid FILE "metadata.json")
-
-public:
-    QObject *create(const char *iface, QWidget *parentWidget, QObject *parent, const QVariantList &args, const QString &keyword)
-    {
-        Q_UNUSED(iface);
-        Q_UNUSED(parentWidget);
-        Q_UNUSED(parent);
-        Q_UNUSED(args);
-        Q_UNUSED(keyword);
-        return new KWin::RetroTermEffect();
-    }
-};
+// KWIN_EFFECT_FACTORY uses KWin's EffectPluginFactory which embeds
+// the KWin ABI version in the plugin IID.  Without this, KWin refuses to load.
+KWIN_EFFECT_FACTORY(KWin::RetroTermEffect, "metadata.json")
 
 namespace KWin
 {
