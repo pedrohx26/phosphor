@@ -86,15 +86,24 @@ set_target_properties(kwin_retro_term_config PROPERTIES
 set(QT6_PLUGIN_ROOT "${CMAKE_INSTALL_FULL_LIBDIR}/qt6/plugins")
 
 # 1. Plugin .so  →  Qt plugin directory for KWin effects
-#    Arch: /usr/lib/qt6/plugins/kwin/effects/plugins/
-install(TARGETS kwin_effect_retro_term
-    DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/plugins
-)
+#
+# Plasma 6.7 ships kwin_wayland and kwin_x11 as separate packages, each scanning
+# its own plugin tree — a Wayland session only looks in kwin/effects/plugins, an
+# X11 session only in kwin-x11/effects/plugins. Installing into just one leaves
+# the effect invisible in the other session type ("supported=false", no error
+# logged anywhere). The lookup is not recursive, so the "plugins" component is
+# required, not decorative. The same binary serves both; they link one libkwin.
+set(KWIN_EFFECT_DIRS "${QT6_PLUGIN_ROOT}/kwin/effects")
+if(EXISTS "${QT6_PLUGIN_ROOT}/kwin-x11")
+    list(APPEND KWIN_EFFECT_DIRS "${QT6_PLUGIN_ROOT}/kwin-x11/effects")
+    message(STATUS "kwin-x11 plugin tree found — installing there as well")
+endif()
 
-# Effect config module for Desktop Effects "Settings" button
-install(TARGETS kwin_retro_term_config
-    DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/configs
-)
+foreach(effect_dir IN LISTS KWIN_EFFECT_DIRS)
+    install(TARGETS kwin_effect_retro_term DESTINATION ${effect_dir}/plugins)
+    # Effect config module for the Desktop Effects "Settings" button
+    install(TARGETS kwin_retro_term_config DESTINATION ${effect_dir}/configs)
+endforeach()
 
 # 2. Fragment shader  →  KWin data directory
 #    Arch: /usr/share/kwin/effects/retro-term/

@@ -91,8 +91,10 @@ if [[ $DO_UNINSTALL -eq 1 ]]; then
     # Look for the .so in common locations
     for d in \
         /usr/lib/qt6/plugins/kwin/effects/plugins \
+        /usr/lib/qt6/plugins/kwin-x11/effects/plugins \
         /usr/lib/kwin/effects/plugins \
-        "$PREFIX/lib/qt6/plugins/kwin/effects/plugins"
+        "$PREFIX/lib/qt6/plugins/kwin/effects/plugins" \
+        "$PREFIX/lib/qt6/plugins/kwin-x11/effects/plugins"
     do
         for f in "$d/retro-term.so" "$d/kwin_effect_retro_term.so"; do
             if [[ -f "$f" ]]; then
@@ -103,6 +105,7 @@ if [[ $DO_UNINSTALL -eq 1 ]]; then
         run_as_root rm -rf /usr/share/kwin/effects/retro-term \
                   "$PREFIX/share/kwin/effects/retro-term" \
                   /usr/lib/qt6/plugins/kwin/effects/configs/kwin_retro_term_config.so \
+                  /usr/lib/qt6/plugins/kwin-x11/effects/configs/kwin_retro_term_config.so \
                   /usr/lib/qt6/plugins/kwin/effects/configs/kcm_retro_term.so \
                   /usr/lib/qt6/plugins/plasma/kcms/systemsettings_qwidgets/kcm_retro_term.so \
                   /usr/lib/qt/plugins/kwin/effects/plugins/kwin_effect_retro_term.so \
@@ -285,16 +288,20 @@ sep
 
 # ── Verifying ─────────────────────────────────────────────────────────────────
 banner "Verifying installation"
+# Both session types must be covered: kwin_wayland only scans the kwin/ tree,
+# kwin_x11 only the kwin-x11/ tree. A missing copy shows up as a silent
+# "effect not supported", never as an error.
 PLUGIN_FOUND=0
 for d in \
     "$PREFIX/lib/qt6/plugins/kwin/effects/plugins" \
+    "$PREFIX/lib/qt6/plugins/kwin-x11/effects/plugins" \
     /usr/lib/qt6/plugins/kwin/effects/plugins \
+    /usr/lib/qt6/plugins/kwin-x11/effects/plugins \
     /usr/lib/kwin/effects/plugins
 do
     if [[ -f "$d/retro-term.so" ]]; then
         ok "Plugin: $d/retro-term.so"
         PLUGIN_FOUND=1
-        break
     fi
 done
 [[ $PLUGIN_FOUND -eq 0 ]] && warn "Plugin .so not found — check cmake --install output"
