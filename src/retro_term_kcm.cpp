@@ -511,6 +511,13 @@ void RetroTermKCM::buildUI()
                                 QStringLiteral("/KWin"),
                                 QStringLiteral("org.kde.KWin"));
             kwin.call(QStringLiteral("reconfigure"));
+            // reconfigure() reloads KWin's own settings but never reaches the
+            // effects, so without this the button saved the values and the effect
+            // kept rendering with the old ones until it was reloaded by hand.
+            QDBusInterface fx(QStringLiteral("org.kde.KWin"),
+                              QStringLiteral("/Effects"),
+                              QStringLiteral("org.kde.kwin.Effects"));
+            fx.call(QStringLiteral("reconfigureEffect"), QStringLiteral("retro-term"));
         });
 
         outerVBox->addWidget(pgb);
