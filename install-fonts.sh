@@ -338,6 +338,14 @@ cmd_install() {
     n=$(find "$FONT_DIR" \( -name "*.ttf" -o -name "*.otf" \) 2>/dev/null | wc -l)
     ok "$n font files installed in $FONT_DIR"
     echo ""
+    # font_present()'s cache is fine for a single query, or for --status run on
+    # its own, but a whole install run adds dozens of fonts to the filesystem
+    # between the first font_present() call (Terminus, near the very top) and
+    # this final summary — reusing that first snapshot here made freshly
+    # installed fonts read back as "missing" in the very report meant to
+    # confirm they installed. Dropping the cache forces one honest re-read of
+    # fc-list right before the summary that actually needs it to be current.
+    _FC_LIST_CACHE=""
     cmd_status
 }
 
