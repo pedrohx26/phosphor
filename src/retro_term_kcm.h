@@ -23,6 +23,8 @@
 #include <QSlider>
 #include <QStandardPaths>
 #include <QString>
+#include <QTabWidget>
+#include <QTimer>
 #include <QWidget>
 #include <QMap>
 
@@ -122,6 +124,10 @@ public:
 private:
     void      buildPresets();
     void      buildUI();
+    QWidget  *buildGeneralTab();
+    QWidget  *buildPresetsTab();
+    QWidget  *buildFontsTab();
+    QWidget  *buildEffectsTab();
     QGroupBox *makeGroup(const QString &title, QFormLayout *&layout);
     ParamRow  *addParam(QFormLayout *fl, const QString &label,
                         double min, double max, double step,
@@ -139,6 +145,22 @@ private:
     QStringList checkedTerminalClasses() const;
     void        updateTerminalSummary();
     void        updatePresetInfo(const PresetValues &p);
+
+    // ── Live preview ──────────────────────────────────────────────────────────
+    // Every control change schedules a debounced save + reconfigureEffect, so a
+    // slider shows its result while being dragged instead of only after Apply.
+    void        schedulePreview();
+    void        pushLivePreview();
+    void        reconfigureKWinEffect();
+
+    // ── Konsole font bridge ───────────────────────────────────────────────────
+    // A KWin effect post-processes pixels a terminal has already rasterized, so
+    // it can never choose the font those glyphs were drawn with. The only way to
+    // honour a preset's font is to write it into the terminal's own profile.
+    void        refreshKonsoleProfiles();
+    bool        applyFontToKonsole(const QString &family, int pointSize, QString *error);
+    bool        restoreKonsoleFont(QString *error);
+    void        updateFontTabInfo();
 
     // ── Modus-selector (bovenaan, meest prominent) ────────────────────────────
     QRadioButton *m_modeOff        = nullptr;
@@ -159,6 +181,22 @@ private:
     QPushButton *m_applyPreset  = nullptr;
     QPushButton *m_applyKWin    = nullptr;
     QLabel      *m_presetInfo   = nullptr;   // toont aanbevolen font + resolutie
+
+    // ── Tabs + live preview ───────────────────────────────────────────────────
+    QTabWidget  *m_tabs           = nullptr;
+    QCheckBox   *m_livePreview    = nullptr;
+    QTimer      *m_previewTimer   = nullptr;
+
+    // ── Fonts-tab ─────────────────────────────────────────────────────────────
+    QComboBox   *m_konsoleProfile = nullptr;
+    QPushButton *m_applyFontBtn   = nullptr;
+    QPushButton *m_restoreFontBtn = nullptr;
+    QCheckBox   *m_autoApplyFont  = nullptr;
+    QLabel      *m_fontStatus     = nullptr;
+    QLabel      *m_fontRecommend  = nullptr;
+    // Font van de laatst geladen preset; leeg zolang er geen preset geladen is.
+    QString      m_presetFont;
+    int          m_presetFontSize = 14;
 
     // ── Parameter widgets ─────────────────────────────────────────────────────
     QMap<QString, ParamRow *>       m_params;
