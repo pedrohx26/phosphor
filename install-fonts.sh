@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║  Phosphor — Font installer for all CRT presets                             ║
-# ║  Installs 17 font groups used by the 43 historical presets                 ║
+# ║  Installs 16 font groups used by the 43 historical presets                 ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 #
 # Usage:  ./install-fonts.sh             Install all fonts
@@ -275,13 +275,10 @@ cmd_install() {
         warn "Glass TTY failed — https://github.com/svofski/glasstty"
     else msg "  $TICK Glass TTY VT220 (already installed)"; fi
 
-    # ── 12. Unscii ───────────────────────────────────────────────────────────
-    if ! font_present "unscii" && ! font_present "Unscii"; then
-        info "12/17 — Unscii (BBC Micro / Mode 7 style)"
-        download "https://github.com/viznut/unscii/raw/master/unscii-16-full.ttf" \
-                 "$FONT_DIR/unscii-16-full.ttf" "Unscii-16" && ok "Unscii installed" || \
-        warn "Unscii failed — http://viznut.fi/unscii/"
-    else msg "  $TICK Unscii (already installed)"; fi
+    # Unscii used to be step 12/17 here ("BBC Micro / Mode 7 style"), but no
+    # preset's font field is actually "Unscii" — BBC Micro and Teletext/Ceefax
+    # both use Bedstead. Downloading a font nothing references was pure
+    # busywork; dropped rather than fixed.
 
     # ── 13–17. Kreativekorp Retro Fonts ──────────────────────────────────────
     if ! font_present "Pet Me" && ! font_present "PetMe"; then
