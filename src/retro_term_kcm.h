@@ -129,6 +129,10 @@ private:
     QWidget  *buildFontsTab();
     QWidget  *buildEffectsTab();
     QGroupBox *makeGroup(const QString &title, QFormLayout *&layout);
+    // Wraps a tab page in a QScrollArea so it degrades gracefully on a short/
+    // constrained System Settings window instead of clipping silently — every
+    // tab gets this, not just the parameter-heavy Effects tab.
+    static QWidget *scrollWrap(QWidget *page);
     ParamRow  *addParam(QFormLayout *fl, const QString &label,
                         double min, double max, double step,
                         const QString &key, const QString &tip);

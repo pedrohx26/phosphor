@@ -21,6 +21,8 @@
 #include <QScrollArea>
 #include <QDoubleSpinBox>
 #include <QPushButton>
+#include <QSplitter>
+#include <QStackedWidget>
 #include <QVBoxLayout>
 #include <QDebug>
 
@@ -394,6 +396,15 @@ QGroupBox *RetroTermKCM::makeGroup(const QString &title, QFormLayout *&fl)
     return gb;
 }
 
+QWidget *RetroTermKCM::scrollWrap(QWidget *page)
+{
+    auto *scroll = new QScrollArea;
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setWidget(page);
+    return scroll;
+}
+
 ParamRow *RetroTermKCM::addParam(QFormLayout *fl, const QString &label,
                                   double min, double max, double step,
                                   const QString &key, const QString &tip)
@@ -541,9 +552,12 @@ void RetroTermKCM::buildUI()
     outerVBox->setSpacing(8);
 
     m_tabs = new QTabWidget;
-    m_tabs->addTab(buildGeneralTab(), i18n("General"));
-    m_tabs->addTab(buildPresetsTab(), i18n("Presets"));
-    m_tabs->addTab(buildFontsTab(),   i18n("Fonts"));
+    m_tabs->addTab(scrollWrap(buildGeneralTab()), i18n("General"));
+    m_tabs->addTab(scrollWrap(buildPresetsTab()), i18n("Presets"));
+    m_tabs->addTab(scrollWrap(buildFontsTab()),   i18n("Fonts"));
+    // Effects tab already builds its own internal QScrollArea (needed there
+    // regardless, for the sidebar+stack layout) — wrapping it again would just
+    // nest two scroll areas around the same content for no benefit.
     m_tabs->addTab(buildEffectsTab(), i18n("Effects"));
     outerVBox->addWidget(m_tabs, 1);
 
@@ -563,9 +577,6 @@ void RetroTermKCM::buildUI()
         foot->addWidget(m_livePreview);
 
         m_applyKWin = new QPushButton(i18n("✓  Apply & reload KWin"));
-        m_applyKWin->setToolTip(i18n(
-            "Saves all settings and reloads KWin "
-            "so the effect becomes active immediately."));
         connect(m_applyKWin, &QPushButton::clicked, this, [this] {
             save();
             QDBusInterface kwin(QStringLiteral("org.kde.KWin"),
@@ -574,6 +585,28 @@ void RetroTermKCM::buildUI()
             kwin.call(QStringLiteral("reconfigure"));
             reconfigureKWinEffect();
         });
+
+        // Met live preview aan doet elke wijziging dit al vanzelf, dus de knop
+        // blijft dan technisch werken maar is voor 95% van de sessies overbodig
+        // — zonder enig visueel signaal daarvan zag hij er hetzelfde uit als
+        // wanneer hij wél de enige manier was om iets toe te passen. Nu grijst
+        // hij uit en verandert het label mee, zodat "waarom staat deze knop
+        // hier" zichzelf beantwoordt.
+        auto updateApplyButtonState = [this] {
+            const bool live = m_livePreview->isChecked();
+            m_applyKWin->setEnabled(!live);
+            m_applyKWin->setText(live
+                ? i18n("✓  Applied automatically")
+                : i18n("✓  Apply & reload KWin"));
+            m_applyKWin->setToolTip(live
+                ? i18n("Live preview is on — every change is already saved and "
+                       "applied as you make it. Turn live preview off to apply "
+                       "changes manually with this button instead.")
+                : i18n("Saves all settings and reloads KWin "
+                       "so the effect becomes active immediately."));
+        };
+        connect(m_livePreview, &QCheckBox::toggled, this, updateApplyButtonState);
+        updateApplyButtonState();
 
         foot->addStretch();
         foot->addWidget(m_applyKWin);
@@ -597,11 +630,12 @@ QWidget *RetroTermKCM::buildGeneralTab()
     outerVBox->setSpacing(8);
 
     {
+        // Dit is de belangrijkste keuze op het hele tabblad, maar een gekleurde
+        // stylesheet-rand op de QGroupBox was niet de juiste manier om dat te
+        // laten zien — het botst met Breeze/andere Plasma-thema's en is verder
+        // nergens anders in de UI terug te vinden. Positie (bovenaan, als eerste
+        // ding dat je ziet) doet het werk al; standaard QGroupBox-chrome volstaat.
         auto *mgb = new QGroupBox(i18n("Which windows should receive the effect?"));
-        mgb->setStyleSheet(
-            QStringLiteral("QGroupBox { font-weight:bold; border:2px solid palette(highlight);"
-                           " border-radius:4px; margin-top:8px; padding-top:6px; }"
-                           "QGroupBox::title { subcontrol-origin:margin; left:8px; }"));
         auto *mvbox = new QVBoxLayout(mgb);
         mvbox->setSpacing(8);
 
@@ -869,19 +903,44 @@ QWidget *RetroTermKCM::buildFontsTab()
 }
 
 // ── Tabblad: Effecten ─────────────────────────────────────────────────────────
+// Effects used to be one long QVBoxLayout of eight-plus GroupBoxes inside a
+// single QScrollArea — everything worked, but finding "Bloom" meant scrolling
+// past Phosphor, Geometry, and Scanlines first every time, with no sense of
+// where you were in the list. That's the flat-stack anti-pattern: it scales
+// to three groups, not eight-plus params-heavy ones. This is the same
+// sidebar-list + stacked-pages structure System Settings itself uses (also
+// Dolphin's and Kate's preferences) — a category list on the left drives a
+// QStackedWidget on the right, so only one group's worth of controls is ever
+// on screen and jumping to "Animations" is one click instead of a scroll.
 QWidget *RetroTermKCM::buildEffectsTab()
 {
     auto *page      = new QWidget;
     auto *outerVBox = new QVBoxLayout(page);
     outerVBox->setContentsMargins(0, 0, 0, 0);
 
-    auto *scroll = new QScrollArea;
-    scroll->setWidgetResizable(true);
-    auto *sc   = new QWidget;
-    auto *vbox = new QVBoxLayout(sc);
-    vbox->setSpacing(10);
-    scroll->setWidget(sc);
-    outerVBox->addWidget(scroll, 1);
+    auto *splitter = new QSplitter(Qt::Horizontal);
+
+    auto *nav = new QListWidget;
+    nav->setSelectionMode(QAbstractItemView::SingleSelection);
+    nav->setMaximumWidth(180);
+    nav->setUniformItemSizes(true);
+    splitter->addWidget(nav);
+
+    auto *stack = new QStackedWidget;
+    splitter->addWidget(stack);
+    splitter->setStretchFactor(0, 0);
+    splitter->setStretchFactor(1, 1);
+
+    // Each group keeps its own QGroupBox title (used elsewhere, e.g. tooltips
+    // referencing "the Pixel scaling group") — the nav gets a shorter label
+    // where the two would otherwise wrap awkwardly in a 180px-wide list.
+    auto addPage = [&](const QString &navLabel, QWidget *groupBox) {
+        nav->addItem(navLabel);
+        // scrollWrap() here too: a single group can still run long (Pixel
+        // Scaling has five rows plus quick-pick buttons) on a short window,
+        // and every other tab already gets this same resize safety net.
+        stack->addWidget(scrollWrap(groupBox));
+    };
 
     { // Fosfory
         QFormLayout *fl = nullptr;
@@ -897,7 +956,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addParam(fl, i18n("Aging:"),             0.0,  1.0,  0.01, "phosphorAgeing",      i18n("0=new, 1=aged yellow/brown"));
         addParam(fl, i18n("Color temperature (K):"),3000,9300,50, "colorTemperature",   i18n("3000=warm yellow, 9300=cold blue-white"));
         addParam(fl, i18n("Persistence:"),       0.0,  1.0,  0.01, "phosphorPersistence", i18n("How long phosphor glow remains visible"));
-        vbox->addWidget(gb);
+        addPage(i18n("Phosphor & Color"), gb);
     }
     { // Geometrie
         QFormLayout *fl = nullptr;
@@ -905,7 +964,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addParam(fl, i18n("Barrel distortion:"), 0.0, 1.0,  0.01, "screenCurvature",   i18n("0=flat, 1=strongly curved"));
         addParam(fl, i18n("Vignette:"),          0.0, 1.0,  0.01, "vignetteIntensity", i18n("Edge darkening"));
         addParam(fl, i18n("Glass reflection:"),  0.0, 0.30, 0.005,"ambientReflection", i18n("Screen glass reflection"));
-        vbox->addWidget(gb);
+        addPage(i18n("Screen Geometry"), gb);
     }
     { // Scanlines
         QFormLayout *fl = nullptr;
@@ -918,7 +977,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         connect(rc, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &RetroTermKCM::markChanged);
         addParam(fl, i18n("Intensity:"), 0.0, 1.0, 0.01, "scanlinesIntensity", i18n("How dark the gaps are"));
         addParam(fl, i18n("Sharpness:"), 0.0, 1.0, 0.01, "scanlinesSharpness", i18n("0=soft, 1=sharp"));
-        vbox->addWidget(gb);
+        addPage(i18n("Scanlines"), gb);
     }
     { // Bloom
         QFormLayout *fl = nullptr;
@@ -927,7 +986,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addParam(fl, i18n("Line glow:"),  0.0, 1.0, 0.01, "glowingLine", i18n("Horizontal line glow"));
         addParam(fl, i18n("Brightness:"), 0.0, 1.0, 0.01, "brightness",  i18n("Overall brightness"));
         addParam(fl, i18n("Contrast:"),  0.0, 1.0, 0.01, "contrast",    i18n("Contrast"));
-        vbox->addWidget(gb);
+        addPage(i18n("Bloom & Glow"), gb);
     }
     { // Ruis
         QFormLayout *fl = nullptr;
@@ -942,7 +1001,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addParam(fl, i18n("Sync intensity:"),  0.0, 1.0,  0.01, "horizontalSync",    i18n("Artifact strength"));
         addParam(fl, i18n("Flicker:"),         0.0, 1.0,  0.01, "flickering",        i18n("50/60Hz brightness flicker"));
         addParam(fl, i18n("Ghost intensity:"), 0.0, 0.5,  0.005,"ghostingIntensity", i18n("Frame echo (only in Ghosting sync mode)"));
-        vbox->addWidget(gb);
+        addPage(i18n("Noise & Sync"), gb);
     }
     { // Kleur
         QFormLayout *fl = nullptr;
@@ -952,7 +1011,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addParam(fl, i18n("Chrom. aberration:"),0.0, 1.0, 0.01, "rbgShift",          i18n("Horizontally shifted RGB channels"));
         addParam(fl, i18n("Character smearing:"),0.0,1.0, 0.01, "characterSmearing", i18n("Horizontal character smearing"));
         addParam(fl, i18n("Burn-in:"),          0.0, 1.0, 0.01, "burnIn",            i18n("Slightly brighter screen center"));
-        vbox->addWidget(gb);
+        addPage(i18n("Color & Aberrations"), gb);
     }
     { // Animaties
         QFormLayout *fl = nullptr;
@@ -969,9 +1028,8 @@ QWidget *RetroTermKCM::buildEffectsTab()
         auto *dgs = new QDoubleSpinBox; dgs->setRange(0.5,10.0); dgs->setSuffix(i18n(" sec")); dgs->setSingleStep(0.5); dgs->setDecimals(1);
         fl->addRow(i18n("Degauss duration:"), dgs); m_spins["degaussDuration"] = dgs;
         connect(dgs, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RetroTermKCM::markChanged);
-        vbox->addWidget(gb);
+        addPage(i18n("Animations"), gb);
     }
-
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // PIXEL SCALING
@@ -994,6 +1052,14 @@ QWidget *RetroTermKCM::buildEffectsTab()
         fl->addRow(i18n("Pixel scale:"), m_pixelScaleRow);
         connect(m_pixelScaleRow, &ParamRow::valueChanged,
                 this, &RetroTermKCM::markChanged);
+        // At pixelScale 0 the width/height fields (and the quick-pick buttons
+        // beside them) are inert — the shader ignores targetRes entirely. Left
+        // enabled, they read as "set" when they do nothing; graying the whole
+        // row out the moment scaling is off makes that state visible instead of
+        // something you have to already know from the tooltip.
+        connect(m_pixelScaleRow, &ParamRow::valueChanged, this, [this](double v) {
+            if (m_targetResRow) m_targetResRow->setEnabled(v > 0.001);
+        });
 
         // Sampling-modus combobox
         m_sampleModeCombo = new QComboBox;
@@ -1052,6 +1118,11 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addRes(i18n("720×350"),  720, 350);
 
         fl->addRow(i18n("Original res.:"), m_targetResRow);
+        // setValue() only emits valueChanged on an actual change, so the row's
+        // enabled state needs one explicit sync here — load() calling
+        // setValue(0.0) on a slider that already defaults to 0.0 fires no
+        // signal at all, and the row would otherwise start enabled regardless.
+        m_targetResRow->setEnabled(m_pixelScaleRow->value() > 0.001);
 
         connect(m_targetResX, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                 this, &RetroTermKCM::markChanged);
@@ -1065,9 +1136,13 @@ QWidget *RetroTermKCM::buildEffectsTab()
         info->setWordWrap(true);
         fl->addRow(QString(), info);
 
-        vbox->addWidget(gb);
+        addPage(i18n("Pixel Scaling"), gb);
     }
-    vbox->addStretch();
+
+    nav->setCurrentRow(0);
+    connect(nav, &QListWidget::currentRowChanged, stack, &QStackedWidget::setCurrentIndex);
+
+    outerVBox->addWidget(splitter, 1);
     return page;
 }
 
