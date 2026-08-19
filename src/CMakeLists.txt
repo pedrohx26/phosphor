@@ -121,6 +121,14 @@ set_target_properties(kwin_retro_term_config PROPERTIES
     PREFIX ""
 )
 
+# ki18n needs a catalog name. A plugin must not call setApplicationDomain() —
+# that belongs to the host application — so the domain is baked in at compile
+# time instead. Without it every i18n() call warns that no domain is set and
+# translations could never be found.
+target_compile_definitions(kwin_retro_term_config PRIVATE
+    TRANSLATION_DOMAIN="kwin_retro_term"
+)
+
 # ── Installation ──────────────────────────────────────────────────────────────
 
 # Plasma 6 on Arch/Garuda loads effect and KCM plugins from the Qt6 plugin tree.

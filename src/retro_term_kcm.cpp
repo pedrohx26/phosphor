@@ -420,9 +420,12 @@ void RetroTermKCM::buildUI()
 
         m_modeTerminals = new QRadioButton(
             i18n("Terminals only  —  Konsole, Yakuake, kitty, Alacritty, ..."));
+        // Substitution belongs inside i18n(); QString::arg() afterwards produces the
+        // right text but makes ki18n warn that the placeholder went unfilled, and it
+        // denies translators any control over argument order.
         m_modeTerminals->setToolTip(i18n(
-            "Applies to all known terminal emulators:\n%1")
-            .arg(QString::fromLatin1(KNOWN_TERMINALS)));
+            "Applies to all known terminal emulators:\n%1",
+            QString::fromLatin1(KNOWN_TERMINALS)));
         m_modeGroup->addButton(m_modeTerminals, static_cast<int>(TargetMode::Terminals));
 
         m_modeAll = new QRadioButton(
@@ -511,6 +514,13 @@ void RetroTermKCM::buildUI()
                                 QStringLiteral("/KWin"),
                                 QStringLiteral("org.kde.KWin"));
             kwin.call(QStringLiteral("reconfigure"));
+            // reconfigure() reloads KWin's own settings but never reaches the
+            // effects, so without this the button saved the values and the effect
+            // kept rendering with the old ones until it was reloaded by hand.
+            QDBusInterface fx(QStringLiteral("org.kde.KWin"),
+                              QStringLiteral("/Effects"),
+                              QStringLiteral("org.kde.kwin.Effects"));
+            fx.call(QStringLiteral("reconfigureEffect"), QStringLiteral("retro-term"));
         });
 
         outerVBox->addWidget(pgb);
