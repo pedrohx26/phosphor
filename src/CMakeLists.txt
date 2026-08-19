@@ -19,18 +19,26 @@ include(KDEInstallDirs6)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL Widgets DBus)
 find_package(KF6 REQUIRED COMPONENTS Config ConfigWidgets CoreAddons I18n KCMUtils)
 find_package(KWin REQUIRED)
+# Plasma 6.7 split kwin into kwin_wayland and kwin_x11, each with its own library
+# AND its own SDK. The two are not ABI-compatible: KWin::Effect has 42 vtable
+# slots in libkwin and 40 in libkwin-x11 (the X11 side froze the older API —
+# QRegion instead of Region, Output instead of LogicalOutput, prePaintWindow
+# without RenderView). A plugin built against one and loaded by the other is
+# constructed fine but every virtual call lands on the wrong slot, so the
+# compositor silently never paints it. Hence: build one plugin per SDK.
+find_package(KWinX11 QUIET)
 
 # Print what we found (useful for debugging build issues)
 message(STATUS "KWin include dirs: ${KWin_INCLUDE_DIRS}")
 message(STATUS "KWin libraries:    ${KWin_LIBRARIES}")
 
 # ── Plugin ────────────────────────────────────────────────────────────────────
+# The sources include SDK headers unprefixed (<effect/effect.h>), so the include
+# root below is what selects the Wayland or the X11 API.
 add_library(kwin_effect_retro_term MODULE
     retro_term_effect.cpp
 )
 
-# On Arch, KWin headers are in /usr/include/kwin/
-# KWin::kwin target should export these, but we add them explicitly as fallback
 target_include_directories(kwin_effect_retro_term PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     /usr/include/kwin
@@ -46,10 +54,47 @@ target_link_libraries(kwin_effect_retro_term PRIVATE
     KWin::kwin
 )
 
-# The plugin file must not have a "lib" prefix — KWin loads it by exact name
+if(KWinX11_FOUND)
+    message(STATUS "kwin-x11 SDK found — building the X11 plugin variant as well")
+    add_library(kwin_effect_retro_term_x11 MODULE
+        retro_term_effect.cpp
+    )
+    target_include_directories(kwin_effect_retro_term_x11 PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        /usr/include/kwin-x11
+    )
+    target_link_libraries(kwin_effect_retro_term_x11 PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::OpenGL
+        Qt6::Widgets
+        KF6::ConfigCore
+        KF6::CoreAddons
+        KWinX11::kwin
+    )
+    # Only the older X11 SDK still has GLShader::isValid().
+    target_compile_definitions(kwin_effect_retro_term_x11 PRIVATE RETRO_SHADER_HAS_ISVALID)
+else()
+    message(STATUS "kwin-x11 SDK not found — Wayland plugin only")
+endif()
+
+# KWin derives the effect id from the plugin's file name, so the file must be
+# named exactly "retro-term.so" — that id is what ends up in kwinrc as
+# [Plugins] retro-termEnabled and what loadEffect()/isEffectLoaded() expect.
+# No "lib" prefix either.
 set_target_properties(kwin_effect_retro_term PROPERTIES
     PREFIX ""
+    OUTPUT_NAME "retro-term"
 )
+if(TARGET kwin_effect_retro_term_x11)
+    # Same file name as the Wayland variant (KWin derives the effect id from it),
+    # so it needs its own output directory to avoid clobbering it.
+    set_target_properties(kwin_effect_retro_term_x11 PROPERTIES
+        PREFIX ""
+        OUTPUT_NAME "retro-term"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/x11"
+    )
+endif()
 
 # ── Effect configuration module (Settings button) ────────────────────────────
 add_library(kwin_retro_term_config MODULE
@@ -82,20 +127,40 @@ set_target_properties(kwin_retro_term_config PROPERTIES
 set(QT6_PLUGIN_ROOT "${CMAKE_INSTALL_FULL_LIBDIR}/qt6/plugins")
 
 # 1. Plugin .so  →  Qt plugin directory for KWin effects
-#    Arch: /usr/lib/qt6/plugins/kwin/effects/plugins/
+#
+# Plasma 6.7 ships kwin_wayland and kwin_x11 as separate packages, each scanning
+# its own plugin tree — a Wayland session only looks in kwin/effects/plugins, an
+# X11 session only in kwin-x11/effects/plugins. Installing into just one leaves
+# the effect invisible in the other session type ("supported=false", no error
+# logged anywhere). The lookup is not recursive, so the "plugins" component is
+# required, not decorative. The same binary serves both; they link one libkwin.
 install(TARGETS kwin_effect_retro_term
-    DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/plugins
-)
-
-# Effect config module for Desktop Effects "Settings" button
+    DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/plugins)
 install(TARGETS kwin_retro_term_config
-    DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/configs
-)
+    DESTINATION ${QT6_PLUGIN_ROOT}/kwin/effects/configs)
+
+if(TARGET kwin_effect_retro_term_x11)
+    install(TARGETS kwin_effect_retro_term_x11
+        DESTINATION ${QT6_PLUGIN_ROOT}/kwin-x11/effects/plugins)
+    # The KCM is a plain KCModule and does not touch the KWin ABI, so the same
+    # binary serves both trees.
+    install(TARGETS kwin_retro_term_config
+        DESTINATION ${QT6_PLUGIN_ROOT}/kwin-x11/effects/configs)
+endif()
 
 # 2. Fragment shader  →  KWin data directory
 #    Arch: /usr/share/kwin/effects/retro-term/
+# On a core-profile GL context KWin looks for "<name>_core.frag" first and only
+# falls back to the plain name if that file is missing. Under the kwin-x11 SDK
+# the miss is not a fallback at all: it yields an invalid shader and the window
+# renders solid white, silently. The shader is already core-profile GLSL (#version
+# 140, in/out), so install it under both names.
 install(FILES retro.frag
     DESTINATION ${KDE_INSTALL_DATADIR}/kwin/effects/retro-term
+)
+install(FILES retro.frag
+    DESTINATION ${KDE_INSTALL_DATADIR}/kwin/effects/retro-term
+    RENAME retro_core.frag
 )
 
 # Note: metadata.json is NOT installed separately — it is embedded in the binary
