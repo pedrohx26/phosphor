@@ -181,8 +181,10 @@ vec3 colorTemp(vec3 col) {
 
 // Scanlines operate on effective resolution when pixelScale is active,
 // so scanlines align with scaled pixels
-float scanlines(vec2 uv) {
-    if (rasterizationMode == 0) return 1.0;
+// Returns a per-channel mask so mode 3 can tint individual subpixels; modes
+// 0-2 are achromatic and simply return the same value in all three channels.
+vec3 scanlines(vec2 uv) {
+    if (rasterizationMode == 0) return vec3(1.0);
 
     // Use effective resolution for scanline positioning
     float effY = mix(resolution.y, targetRes.y, pixelScale);
@@ -191,16 +193,34 @@ float scanlines(vec2 uv) {
     if (rasterizationMode == 1) {
         float l = smoothstep(0.0, scanlinesSharpness + 0.01, ph)
                 * smoothstep(1.0, 1.0 - scanlinesSharpness - 0.01, ph);
-        return mix(1.0, l, scanlinesIntensity);
+        return vec3(mix(1.0, l, scanlinesIntensity));
     }
     if (rasterizationMode == 2) {
         float effX = mix(resolution.x, targetRes.x, pixelScale);
         float px = smoothstep(0.0, 0.4, fract(uv.x * effX))
                  * smoothstep(1.0, 0.6, fract(uv.x * effX));
         float py = smoothstep(0.0, 0.4, ph) * smoothstep(1.0, 0.6, ph);
-        return mix(1.0, px * py, scanlinesIntensity);
+        return vec3(mix(1.0, px * py, scanlinesIntensity));
     }
-    return 1.0;
+    if (rasterizationMode == 3) {
+        // Aperture grille (Trinitron): continuous vertical RGB phosphor stripes
+        // held taut by horizontal damper wires — so, unlike a shadow mask, there
+        // is deliberately no vertical subdivision here. Each screen-space triad
+        // lights one stripe per channel, which is what gives a Trinitron its
+        // characteristic bright, vertically-continuous look.
+        float effX  = mix(resolution.x, targetRes.x, pixelScale);
+        float triad = fract(uv.x * effX);          // position within one RGB triad
+        vec3  m = vec3(
+            smoothstep(0.00, 0.16, triad) * smoothstep(0.50, 0.34, triad),
+            smoothstep(0.33, 0.49, triad) * smoothstep(0.83, 0.67, triad),
+            smoothstep(0.66, 0.82, triad) + smoothstep(0.17, 0.01, triad));
+        m = clamp(m, 0.0, 1.0);
+        // Normalise so the grille darkens the image no more than the other modes
+        // at the same intensity, instead of dropping it to a third brightness.
+        m *= 1.0 / max(max(m.r, max(m.g, m.b)), 1e-3);
+        return mix(vec3(1.0), m, scanlinesIntensity);
+    }
+    return vec3(1.0);
 }
 
 // Bloom uses scaleUV so glow aligns with scaled pixels
