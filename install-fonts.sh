@@ -27,7 +27,20 @@ err()  { echo -e "${R}[err ]${NC} $*" >&2; }
 die()  { err "$*"; exit 1; }
 
 has()  { command -v "$1" &>/dev/null; }
-font_present() { fc-list 2>/dev/null | grep -qi "${1%%,*}"; }
+# "fc-list | grep -q" is a classic pipefail trap: -q makes grep exit the
+# instant it finds a match, and with hundreds of fonts installed (this pack
+# alone adds 1000+ files) grep very often wins that race and exits before
+# fc-list has finished writing — fc-list then dies of SIGPIPE, "set -o
+# pipefail" turns that into exit 141, and font_present() reports "missing"
+# for a font that is, in fact, installed. Grepping a cached copy of fc-list's
+# output instead of a live pipe removes the process fc-list could be
+# SIGPIPE'd from, and skips re-running fc-list (slow with this many fonts)
+# on every single call.
+_FC_LIST_CACHE=""
+font_present() {
+    [[ -z "$_FC_LIST_CACHE" ]] && _FC_LIST_CACHE="$(fc-list 2>/dev/null)"
+    grep -qi "${1%%,*}" <<< "$_FC_LIST_CACHE"
+}
 
 download() {
     local url="$1" dest="$2" desc="${3:-file}"
@@ -80,16 +93,24 @@ cmd_status() {
     FMAP["PxPlus NEC APC3"]="NEC APC III"
     FMAP["PxPlus HP 150"]="HP 150 Touchscreen"
 
+    # Two bugs in one: "done | sort" makes the loop run in a subshell, so ok_n/
+    # miss_n updates never reach the outer scope and the summary below always
+    # printed "0 0" — and under set -e, "((ok_n++))" from a starting value of 0
+    # returns exit status 1 (arithmetic result 0 = "false"), which used to kill
+    # the whole script after the very first increment. Building the sorted text
+    # first and counting in the same (non-subshell) loop that emits it fixes both.
+    local lines=""
     for font in "${!FMAP[@]}"; do
         local presets="${FMAP[$font]}"
         if font_present "${font%% *}"; then
-            printf "  ${G}✓${NC} %-28s %-40s ${G}installed${NC}\n" "$font" "$presets"
-            ((ok_n++))
+            lines+=$(printf "  ${G}✓${NC} %-28s %-40s ${G}installed${NC}\n" "$font" "$presets")$'\n'
+            ok_n=$((ok_n + 1))
         else
-            printf "  ${R}✗${NC} %-28s %-40s ${R}missing${NC}\n" "$font" "$presets"
-            ((miss_n++))
+            lines+=$(printf "  ${R}✗${NC} %-28s %-40s ${R}missing${NC}\n" "$font" "$presets")$'\n'
+            miss_n=$((miss_n + 1))
         fi
-    done | sort
+    done
+    printf '%s' "$lines" | sort
     echo ""
     msg "  ${G}✓ Installed: $ok_n${NC}   ${R}✗ Missing: $miss_n${NC}"
     echo ""
@@ -109,7 +130,10 @@ cmd_install() {
     has fc-cache || die "Need fc-cache — install via: sudo pacman -S fontconfig"
 
     mkdir -p "$FONT_DIR"
-    local TMP
+    # Deliberately not "local": the EXIT trap below still needs to see this
+    # after cmd_install() has returned and its local scope is gone — under
+    # set -u a local TMP made the trap itself die with "TMP: unbound variable"
+    # at the very end of every run, install or --status alike.
     TMP=$(mktemp -d /tmp/phosphor-fonts.XXXXXX)
     trap 'rm -rf "$TMP"' EXIT
 
@@ -119,6 +143,12 @@ cmd_install() {
         if has pacman; then
             pacman -Qi terminus-font &>/dev/null || {
                 info "Installing via pacman (may need password)..."
+                # pkexec needs a polkit agent, which only exists in a graphical
+                # session; a headless/SSH shell has none, so try passwordless
+                # sudo first — several setups (like the one this was tested on)
+                # allow "pacman -S --noconfirm *" without a password — and only
+                # fall back to pkexec where that isn't the case.
+                sudo -n pacman -S --needed --noconfirm terminus-font 2>/dev/null || \
                 pkexec pacman -S --needed --noconfirm terminus-font 2>/dev/null || true
             }
         fi
@@ -133,7 +163,7 @@ cmd_install() {
             yay -S --needed --noconfirm ttf-oldschool-pc-font-pack 2>/dev/null && ok "int10h via AUR" || true
         fi
         if ! font_present "PxPlus"; then
-            download "https://int10h.org/oldschool-pc-fonts/files/oldschool_pc_font_pack_v2.2.zip" \
+            download "https://int10h.org/oldschool-pc-fonts/download/oldschool_pc_font_pack_v2.2_FULL.zip" \
                      "$TMP/int10h.zip" "int10h Pack v2.2" && \
             unzip -q "$TMP/int10h.zip" -d "$TMP/int10h/" 2>/dev/null && \
             find "$TMP/int10h/" -name "*.ttf" -exec cp {} "$FONT_DIR/" \; && \
@@ -146,12 +176,19 @@ cmd_install() {
     if ! font_present "Topaz"; then
         info "3/17 — Amiga Topaz Unicode (Amiga 500, WorkBench)"
         if has git; then
-            git clone --depth=1 -q https://github.com/rewtnull/amigafonts.git "$TMP/amiga" 2>/dev/null || \
-            download "https://github.com/rewtnull/amigafonts/archive/refs/heads/master.zip" \
-                     "$TMP/amiga.zip" "Amiga fonts" && \
-            unzip -q "$TMP/amiga.zip" -d "$TMP/" 2>/dev/null || true
-            local adir
-            adir=$(find "$TMP" -maxdepth 2 -type d -name "amigafonts*" | head -1)
+            # git clone puts the checkout at $TMP/amiga; the zip fallback extracts
+            # to "amigafonts-master" (GitHub's "$repo-$branch" convention). The
+            # find-glob below used to only match the zip's name, so a *successful*
+            # git clone — the common case, since git is normally present — still
+            # copied nothing: adir stayed empty and Topaz was reported as failed.
+            local adir=""
+            if git clone --depth=1 -q https://github.com/rewtnull/amigafonts.git "$TMP/amiga" 2>/dev/null; then
+                adir="$TMP/amiga"
+            elif download "https://github.com/rewtnull/amigafonts/archive/refs/heads/master.zip" \
+                          "$TMP/amiga.zip" "Amiga fonts" \
+                 && unzip -q "$TMP/amiga.zip" -d "$TMP/" 2>/dev/null; then
+                adir=$(find "$TMP" -maxdepth 2 -type d -name "amigafonts*" | head -1)
+            fi
             [[ -n "$adir" ]] && find "$adir" \( -name "*.ttf" -o -name "*.otf" \) -exec cp {} "$FONT_DIR/" \;
         fi
         font_present "Topaz" && ok "Topaz installed" || warn "Topaz failed — https://github.com/rewtnull/amigafonts"
@@ -175,7 +212,9 @@ cmd_install() {
     # ── 5. VT323 ─────────────────────────────────────────────────────────────
     if ! font_present "VT323"; then
         info "5/17 — VT323 (DEC VT100, GT40, ZX Spectrum, MSX)"
-        download "https://github.com/googlefonts/vt323/raw/main/fonts/VT323-Regular.ttf" \
+        # The googlefonts org used to ship one repo per font; those are gone and
+        # everything now lives in the single google/fonts monorepo instead.
+        download "https://raw.githubusercontent.com/google/fonts/main/ofl/vt323/VT323-Regular.ttf" \
                  "$FONT_DIR/VT323-Regular.ttf" "VT323" && ok "VT323 installed" || \
         warn "VT323 failed — https://fonts.google.com/specimen/VT323"
     else msg "  $TICK VT323 (already installed)"; fi
@@ -183,7 +222,7 @@ cmd_install() {
     # ── 6. Share Tech Mono ───────────────────────────────────────────────────
     if ! font_present "ShareTechMono" && ! font_present "Share Tech"; then
         info "6/17 — Share Tech Mono (Radar)"
-        download "https://github.com/googlefonts/sharetechmono/raw/main/fonts/ShareTechMono-Regular.ttf" \
+        download "https://raw.githubusercontent.com/google/fonts/main/ofl/sharetechmono/ShareTechMono-Regular.ttf" \
                  "$FONT_DIR/ShareTechMono-Regular.ttf" "Share Tech Mono" && ok "Share Tech Mono installed" || \
         warn "Share Tech Mono failed — https://fonts.google.com/specimen/Share+Tech+Mono"
     else msg "  $TICK Share Tech Mono (already installed)"; fi
@@ -191,9 +230,9 @@ cmd_install() {
     # ── 7. Silkscreen ────────────────────────────────────────────────────────
     if ! font_present "Silkscreen"; then
         info "7/17 — Silkscreen (Apple Macintosh 128K)"
-        download "https://github.com/googlefonts/Silkscreen/raw/main/fonts/ttf/Silkscreen-Regular.ttf" \
+        download "https://raw.githubusercontent.com/google/fonts/main/ofl/silkscreen/Silkscreen-Regular.ttf" \
                  "$FONT_DIR/Silkscreen-Regular.ttf" "Silkscreen" && \
-        download "https://github.com/googlefonts/Silkscreen/raw/main/fonts/ttf/Silkscreen-Bold.ttf" \
+        download "https://raw.githubusercontent.com/google/fonts/main/ofl/silkscreen/Silkscreen-Bold.ttf" \
                  "$FONT_DIR/Silkscreen-Bold.ttf" "Silkscreen Bold" && ok "Silkscreen installed" || \
         warn "Silkscreen failed — https://kottke.org/plus/type/silkscreen/"
     else msg "  $TICK Silkscreen (already installed)"; fi
@@ -231,8 +270,8 @@ cmd_install() {
     # ── 11. Glass TTY VT220 ──────────────────────────────────────────────────
     if ! font_present "Glass"; then
         info "11/17 — Glass TTY VT220 (IBM 2260)"
-        download "https://github.com/svofski/glasstty/raw/master/GlassTTYVT220.ttf" \
-                 "$FONT_DIR/GlassTTYVT220.ttf" "Glass TTY VT220" && ok "Glass TTY installed" || \
+        download "https://raw.githubusercontent.com/svofski/glasstty/master/Glass_TTY_VT220.ttf" \
+                 "$FONT_DIR/Glass_TTY_VT220.ttf" "Glass TTY VT220" && ok "Glass TTY installed" || \
         warn "Glass TTY failed — https://github.com/svofski/glasstty"
     else msg "  $TICK Glass TTY VT220 (already installed)"; fi
 
