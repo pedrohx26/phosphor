@@ -64,7 +64,6 @@ cmd_status() {
     FMAP["Glass TTY VT220"]="IBM 2260"
     FMAP["Print Char 21"]="Apple II"
     FMAP["Atari Classic"]="Atari 400/800"
-    FMAP["Lucida Console"]="NeXT Station, Sun-3"
     FMAP["Pet Me"]="Commodore PET 2001"
     FMAP["Another Man's Treasure"]="TRS-80 Model I"
     FMAP["Hot CoCo"]="TRS-80 Color Computer"

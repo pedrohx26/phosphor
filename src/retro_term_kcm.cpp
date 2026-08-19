@@ -92,7 +92,11 @@ void RetroTermKCM::buildPresets()
     p({"Amiga 500 (1987)","1987 — PAL-TV of 1084S",2,0.15,6800,0.14,0.25,0.38,0.06,1,0.48,0.44,0.55,0.20,0.52,0.81,0.08,0.10,0,0.05,0.08,0.00,0.65,0.42,0.10,0.18,0.18,true,8.0,true,2.5,"Topaz Unicode",14,320.0,256.0});
     p({"Amiga WorkBench 2 (1990)","1990 — 1084S RGB-monitor",2,0.10,7000,0.10,0.20,0.30,0.05,1,0.40,0.52,0.48,0.16,0.56,0.83,0.06,0.08,0,0.04,0.06,0.00,0.68,0.38,0.08,0.14,0.14,true,7.0,true,2.2,"Topaz Unicode",14,640.0,256.0});
     p({"Apple Macintosh 128K (1984)","1984 — 9-inch Sony CRT b/w",2,0.35,9000,0.08,0.15,0.55,0.12,2,0.20,0.70,0.35,0.10,0.60,0.92,0.03,0.04,0,0.02,0.04,0.00,0.00,0.00,0.04,0.05,0.40,true,6.0,true,2.0,"Silkscreen",12,512.0,342.0});
-    p({"NeXT Station (1990)","1990 — 1120×832 grijs",2,0.08,8000,0.06,0.08,0.22,0.05,0,0.35,0.50,0.32,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.00,0.00,0.03,0.04,0.12,true,5.0,true,1.8,"Lucida Console",13,1120.0,832.0});
+    // Font: DejaVu Sans Mono — "Lucida Console" is a Microsoft font with no
+    // free-redistributable source, so install-fonts.sh never had anything to
+    // fetch for it; DejaVu Sans Mono ships in every distro's base fonts package
+    // (already present on both test machines) and reads the same UNIX-console way.
+    p({"NeXT Station (1990)","1990 — 1120×832 grijs",2,0.08,8000,0.06,0.08,0.22,0.05,0,0.35,0.50,0.32,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.00,0.00,0.03,0.04,0.12,true,5.0,true,1.8,"DejaVu Sans Mono",13,1120.0,832.0});
     p({"SVGA Multisync (1992)","1992 — 800×600, shadow mask",2,0.06,7600,0.06,0.10,0.20,0.04,1,0.22,0.72,0.35,0.10,0.60,0.87,0.03,0.04,0,0.02,0.04,0.00,0.70,0.30,0.05,0.06,0.10,true,6.0,true,2.0,"Terminus",14,800.0,600.0});
     p({"Sony Trinitron (1997)","1989–1997 — Aperture-grille",2,0.05,7800,0.05,0.04,0.18,0.04,3,0.18,0.78,0.30,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.80,0.28,0.04,0.04,0.08,true,5.0,true,1.8,"Terminus",14,1024.0,768.0});
     p({"Teletext / Ceefax (1974)","1974 — PAL-TV, 8 kleuren",2,0.30,6200,0.20,0.40,0.52,0.09,1,0.62,0.28,0.70,0.30,0.46,0.76,0.20,0.24,2,0.18,0.20,0.12,0.80,0.55,0.22,0.40,0.28,true,12.0,true,3.5,"Bedstead",16,480.0,250.0});
@@ -305,26 +309,35 @@ void RetroTermKCM::buildPresets()
     // Commodore VIC-20 (1981)
     // Hardware: MOS 6560/6561 (VIC), composite naar TV
     // Font: C64 Pro Mono — shares Commodore character ROM lineage
+    // Resolution: 176x184 — VIC-20 high-res graphics mode (22x23 text cells at
+    // 8x8 px); missing from the original entry, which left pixel scaling off.
     p({"Commodore VIC-20 (1981)","1981 — First color Commodore home computer",
        2,0.28,6000,0.20, 0.40,0.52,0.09, 1,0.58,0.30,
        0.68,0.30,0.46,0.75, 0.16,0.20,1,0.15,0.16,0.00,
-       0.50,0.42,0.20,0.38,0.22, true,10.0,true,3.0, "C64 Pro Mono",16});
+       0.50,0.42,0.20,0.38,0.22, true,10.0,true,3.0, "C64 Pro Mono",16,176.0,184.0});
 
     // MSX (1983)
     // Hardware: TMS9918 video, composite naar TV
     // Font: VT323 — similar to common MSX screen fonts
+    // Resolution: 256x192 — TMS9918 standard screen mode, shared by every
+    // TMS9918-based system (MSX, ColecoVision, SG-1000); missing from the
+    // original entry, which left pixel scaling off.
     p({"MSX (1983)","1983 — Japanese home computer standard (Sony, Philips, Panasonic)",
        2,0.24,6500,0.18, 0.35,0.46,0.07, 1,0.52,0.36,
        0.62,0.24,0.50,0.79, 0.12,0.14,1,0.10,0.12,0.00,
-       0.58,0.42,0.15,0.28,0.22, true,9.0,true,2.8, "VT323",14});
+       0.58,0.42,0.15,0.28,0.22, true,9.0,true,2.8, "VT323",14,256.0,192.0});
 
     // Sun-3 Workstation (1985)
     // Hardware: Sun GX framebuffer, monochrome or grayscale CRT
-    // Font: Lucida Console — common UNIX workstation font
+    // Font: DejaVu Sans Mono — see the NeXT Station comment above; same
+    //       Lucida-Console-is-not-redistributable reasoning applies here.
+    // Resolution: 1152x900 — the canonical Sun "GX"/Datatron framebuffer size
+    //       used across Sun-2/Sun-3 era monochrome monitors; missing from the
+    //       original entry, which left pixel scaling off.
     p({"Sun-3 Workstation (1985)","1985 — UNIX workstation, GX framebuffer",
        2,0.12,8200,0.08, 0.10,0.25,0.04, 1,0.28,0.68,
        0.40,0.12,0.58,0.86, 0.03,0.04,0,0.02,0.04,0.00,
-       0.00,0.00,0.04,0.06,0.12, true,6.0,true,2.0, "Lucida Console",14});
+       0.00,0.00,0.04,0.06,0.12, true,6.0,true,2.0, "DejaVu Sans Mono",14,1152.0,900.0});
 
 }
 
@@ -357,13 +370,15 @@ void RetroTermKCM::setTargetMode(TargetMode mode)
 {
     if (m_customRow)
         m_customRow->setVisible(mode == TargetMode::Custom);
+    if (m_terminalListWrap)
+        m_terminalListWrap->setVisible(mode == TargetMode::Terminals);
 
     auto btn = [&]() -> QRadioButton * {
         switch (mode) {
             case TargetMode::Off:        return m_modeOff;
             case TargetMode::Terminals:  return m_modeTerminals;
-            case TargetMode::AllWindows: return m_modeAll;
             case TargetMode::Custom:     return m_modeCustom;
+            case TargetMode::AllWindows: return nullptr;  // niet meer selecteerbaar; zie load()
         }
         return nullptr;
     }();
@@ -376,6 +391,88 @@ void RetroTermKCM::setTargetMode(TargetMode mode)
 TargetMode RetroTermKCM::currentTargetMode() const
 {
     return static_cast<TargetMode>(m_modeGroup->checkedId());
+}
+
+// ── Terminal-checklist ──────────────────────────────────────────────────────────
+QMap<QString, bool> RetroTermKCM::currentTerminalState() const
+{
+    QMap<QString, bool> state;
+    if (!m_terminalList) return state;
+    for (int i = 0; i < m_terminalList->count(); ++i) {
+        auto *it = m_terminalList->item(i);
+        state.insert(it->data(Qt::UserRole).toString(), it->checkState() == Qt::Checked);
+    }
+    return state;
+}
+
+QStringList RetroTermKCM::checkedTerminalClasses() const
+{
+    QStringList out;
+    if (!m_terminalList) return out;
+    for (int i = 0; i < m_terminalList->count(); ++i) {
+        auto *it = m_terminalList->item(i);
+        if (it->checkState() == Qt::Checked)
+            out << it->data(Qt::UserRole).toString();
+    }
+    return out;
+}
+
+void RetroTermKCM::updateTerminalSummary()
+{
+    if (!m_terminalSummary || !m_terminalList) return;
+    int checked = 0;
+    for (int i = 0; i < m_terminalList->count(); ++i)
+        if (m_terminalList->item(i)->checkState() == Qt::Checked) ++checked;
+    m_terminalSummary->setText(i18n("%1 of %2 selected", checked, m_terminalList->count()));
+}
+
+// Rebuilds the checklist from what's actually on this system (QStandardPaths::
+// findExecutable against PATH — cheap, dependency-free, and "found on the
+// system" in the most literal sense). priorChecked seeds which rows start
+// checked: on load() this is the terminal set from a previously saved config,
+// on Rescan it's simply the list's current on-screen state, so neither loses
+// anything the other doesn't already know about.
+//
+// Rows only ever come from two sources: a detected candidate, or a leftover
+// key in priorChecked that detection didn't find (a terminal that's since been
+// uninstalled, or a WM_CLASS carried over from an older Custom setup). Because
+// save() only ever writes *checked* classes into targetClasses, an unchecked-
+// but-installed candidate has no persisted trace — reopening the panel simply
+// treats it as "no history yet" and checks it by default again. Remembering an
+// explicit uncheck across restarts would need a second config key; not worth
+// it unless it turns out to matter in practice.
+void RetroTermKCM::rebuildTerminalList(const QMap<QString, bool> &priorChecked)
+{
+    if (!m_terminalList) return;
+    m_terminalList->clear();
+
+    QSet<QString> seen;
+    auto addRow = [&](const QString &exec, const QString &display, bool notDetected) {
+        if (seen.contains(exec)) return;
+        seen.insert(exec);
+        const bool checked = priorChecked.contains(exec) ? priorChecked.value(exec) : true;
+
+        auto *item = new QListWidgetItem(m_terminalList);
+        item->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled);
+        item->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
+        item->setData(Qt::UserRole, exec);
+        item->setText(notDetected
+            ? i18n("%1  (%2 — not detected)", display, exec)
+            : i18n("%1  (%2)", display, exec));
+        if (notDetected)
+            item->setForeground(m_terminalList->palette().color(QPalette::Disabled, QPalette::Text));
+    };
+
+    for (const auto &cand : TERMINAL_CANDIDATES) {
+        const QString exec = QString::fromLatin1(cand.exec);
+        if (!QStandardPaths::findExecutable(exec).isEmpty())
+            addRow(exec, QString::fromLatin1(cand.display), false);
+    }
+    for (auto it = priorChecked.constBegin(); it != priorChecked.constEnd(); ++it)
+        if (!seen.contains(it.key()))
+            addRow(it.key(), it.key(), true);
+
+    updateTerminalSummary();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -419,21 +516,11 @@ void RetroTermKCM::buildUI()
         m_modeGroup->addButton(m_modeOff, static_cast<int>(TargetMode::Off));
 
         m_modeTerminals = new QRadioButton(
-            i18n("Terminals only  —  Konsole, Yakuake, kitty, Alacritty, ..."));
-        // Substitution belongs inside i18n(); QString::arg() afterwards produces the
-        // right text but makes ki18n warn that the placeholder went unfilled, and it
-        // denies translators any control over argument order.
+            i18n("Terminals  —  pick which detected terminals below"));
         m_modeTerminals->setToolTip(i18n(
-            "Applies to all known terminal emulators:\n%1",
-            QString::fromLatin1(KNOWN_TERMINALS)));
+            "Each terminal emulator found on this system gets its own checkbox "
+            "in the list below."));
         m_modeGroup->addButton(m_modeTerminals, static_cast<int>(TargetMode::Terminals));
-
-        m_modeAll = new QRadioButton(
-            i18n("All windows  —  every on-screen window becomes retro"));
-        m_modeAll->setToolTip(i18n(
-            "Every window rendered by KWin gets the CRT effect. "
-            "Looks great, but costs more GPU resources."));
-        m_modeGroup->addButton(m_modeAll, static_cast<int>(TargetMode::AllWindows));
 
         m_modeCustom = new QRadioButton(
             i18n("Custom  —  choose specific applications"));
@@ -444,7 +531,35 @@ void RetroTermKCM::buildUI()
 
         mvbox->addWidget(m_modeOff);
         mvbox->addWidget(m_modeTerminals);
-        mvbox->addWidget(m_modeAll);
+
+        // Terminal-checklist — verborgen tenzij "Terminals" geselecteerd. Alleen
+        // het vinkje zelf is aan te klikken; de lijst heeft bewust geen selectie
+        // (NoSelection), dus er is niets anders om per ongeluk te "selecteren".
+        m_terminalListWrap = new QWidget;
+        auto *tlw = new QVBoxLayout(m_terminalListWrap);
+        tlw->setContentsMargins(28, 2, 0, 4);
+        tlw->setSpacing(4);
+
+        m_terminalList = new QListWidget;
+        m_terminalList->setSelectionMode(QAbstractItemView::NoSelection);
+        m_terminalList->setFocusPolicy(Qt::NoFocus);
+        m_terminalList->setMaximumHeight(190);
+        m_terminalList->setAlternatingRowColors(true);
+        tlw->addWidget(m_terminalList);
+
+        auto *tlFooter = new QHBoxLayout;
+        m_rescanTerminals = new QPushButton(i18n("Rescan installed applications"));
+        m_rescanTerminals->setFlat(true);
+        m_terminalSummary = new QLabel;
+        m_terminalSummary->setStyleSheet(QStringLiteral("color: palette(disabled-text);"));
+        tlFooter->addWidget(m_rescanTerminals);
+        tlFooter->addStretch();
+        tlFooter->addWidget(m_terminalSummary);
+        tlw->addLayout(tlFooter);
+
+        mvbox->addWidget(m_terminalListWrap);
+        m_terminalListWrap->setVisible(false);
+
         mvbox->addWidget(m_modeCustom);
 
         // Aangepast invoerveld — verborgen tenzij Custom geselecteerd
@@ -471,6 +586,14 @@ void RetroTermKCM::buildUI()
         });
         connect(m_targetClasses, &QLineEdit::textChanged,
                 this, &RetroTermKCM::markChanged);
+        connect(m_terminalList, &QListWidget::itemChanged, this, [this](QListWidgetItem *) {
+            updateTerminalSummary();
+            markChanged();
+        });
+        connect(m_rescanTerminals, &QPushButton::clicked, this, [this] {
+            rebuildTerminalList(currentTerminalState());
+            markChanged();
+        });
 
         outerVBox->addWidget(mgb);
     }
@@ -496,6 +619,16 @@ void RetroTermKCM::buildUI()
             "so the effect becomes active immediately."));
 
         pfl->addRow(i18n("Preset:"), m_presetCombo);
+
+        // Shows the preset's recommended font and target resolution the moment it's
+        // picked — before "Load preset" is even clicked — since neither is something
+        // this effect can set for you: the font lives in the terminal emulator's own
+        // profile, entirely outside what a KWin effect can reach.
+        m_presetInfo = new QLabel;
+        m_presetInfo->setTextFormat(Qt::RichText);
+        m_presetInfo->setWordWrap(true);
+        pfl->addRow(QString(), m_presetInfo);
+
         auto *btnRow = new QHBoxLayout;
         btnRow->addWidget(m_applyPreset);
         btnRow->addWidget(m_applyKWin);
@@ -503,7 +636,10 @@ void RetroTermKCM::buildUI()
         pfl->addRow(QString(), btnRow);
 
         connect(m_presetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this](int idx) { m_applyPreset->setEnabled(idx > 0); });
+                this, [this](int idx) {
+            m_applyPreset->setEnabled(idx > 0);
+            updatePresetInfo(idx > 0 ? m_presets.at(idx - 1) : PresetValues{});
+        });
         connect(m_applyPreset, &QPushButton::clicked, this, [this] {
             const int idx = m_presetCombo->currentIndex();
             if (idx > 0) applyPreset(m_presets.at(idx - 1));
@@ -756,7 +892,32 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     } else {
         if (m_pixelScaleRow) m_pixelScaleRow->setValue(0.0);
     }
+    updatePresetInfo(p);
     markChanged();
+}
+
+// A KWin effect cannot reach into a terminal emulator's own profile settings —
+// there is no API for it, and there shouldn't be — so the font a preset was
+// designed for can only ever be a recommendation shown here, never applied
+// automatically. QFontDatabase::families() is enough to say whether it's even
+// installed, so at least that part doesn't require guessing.
+void RetroTermKCM::updatePresetInfo(const PresetValues &p)
+{
+    if (!m_presetInfo) return;
+    if (p.font.isEmpty()) { m_presetInfo->clear(); return; }
+
+    const bool installed = QFontDatabase::families().contains(p.font, Qt::CaseInsensitive);
+    const QString fontPart = installed
+        ? i18n("Font: <b>%1</b>, %2pt (installed)", p.font, p.fontSize)
+        : i18n("Font: <b>%1</b>, %2pt "
+               "(<span style=\"color:#c0392b;\">not installed — run ./install-fonts.sh</span>)",
+               p.font, p.fontSize);
+
+    const QString resPart = (p.targetResX > 0.0 && p.targetResY > 0.0)
+        ? i18n("Target resolution: %1×%2", (int)p.targetResX, (int)p.targetResY)
+        : i18n("Target resolution: native (no pixel scaling)");
+
+    m_presetInfo->setText(fontPart + QStringLiteral("<br>") + resPart);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -767,13 +928,30 @@ void RetroTermKCM::load()
     KConfigGroup cfg = KSharedConfig::openConfig(QStringLiteral("kwinrc"))
                            ->group(QStringLiteral("Effect-retro-terminal"));
 
-    // Modus
-    const int savedMode = cfg.readEntry("targetMode",
-                                        static_cast<int>(TargetMode::Terminals));
-    setTargetMode(static_cast<TargetMode>(savedMode));
+    // Modus. "All windows" was removed as a selectable option; a config saved
+    // before that change can still have targetMode==AllWindows on disk, and
+    // there is no radio button left for setTargetMode() to check in that case —
+    // fall back to Terminals, the closest thing that still exists.
+    int savedModeRaw = cfg.readEntry("targetMode", static_cast<int>(TargetMode::Terminals));
+    if (savedModeRaw == static_cast<int>(TargetMode::AllWindows))
+        savedModeRaw = static_cast<int>(TargetMode::Terminals);
+    const TargetMode savedMode = static_cast<TargetMode>(savedModeRaw);
+    setTargetMode(savedMode);
+
     if (m_targetClasses)
-        m_targetClasses->setText(cfg.readEntry("targetClasses",
-            QString::fromLatin1(KNOWN_TERMINALS)));
+        m_targetClasses->setText(cfg.readEntry("targetClasses", QString()));
+
+    // The checklist's history only means something while the saved mode was
+    // actually Terminals — targetClasses under Custom holds arbitrary WM_CLASS
+    // text that has nothing to do with which detected terminals are checked.
+    QMap<QString, bool> priorTerminals;
+    if (savedMode == TargetMode::Terminals) {
+        const QStringList saved = cfg.readEntry("targetClasses", QString())
+                                       .split(QLatin1Char(','), Qt::SkipEmptyParts);
+        for (const QString &s : saved)
+            priorTerminals.insert(s.trimmed().toLower(), true);
+    }
+    rebuildTerminalList(priorTerminals);
 
     // Combos
     if (auto *c = m_combos.value("phosphorType"))      c->setCurrentIndex(cfg.readEntry("phosphorType",      1));
@@ -816,9 +994,9 @@ void RetroTermKCM::save()
     QString classes;
     switch (mode) {
         case TargetMode::Off:        classes = QString(); break;
-        case TargetMode::Terminals:  classes = QString::fromLatin1(KNOWN_TERMINALS); break;
-        case TargetMode::AllWindows: classes = QStringLiteral("*"); break;   // effect-code herkent "*" als "alles"
+        case TargetMode::Terminals:  classes = checkedTerminalClasses().join(QLatin1Char(',')); break;
         case TargetMode::Custom:     classes = m_targetClasses ? m_targetClasses->text() : QString(); break;
+        case TargetMode::AllWindows: classes = QString(); break;  // onbereikbaar via de UI; alleen voor een sluitende switch
     }
     grp.writeEntry("targetClasses", classes);
 
@@ -856,7 +1034,8 @@ void RetroTermKCM::defaults()
 {
     setTargetMode(TargetMode::Terminals);
     if (m_targetClasses)
-        m_targetClasses->setText(QString::fromLatin1(KNOWN_TERMINALS));
+        m_targetClasses->clear();
+    rebuildTerminalList({});   // lege prior-set -> elk gedetecteerd kandidaat start aangevinkt
     applyPreset(PresetValues{});
     setNeedsSave(true);
 }

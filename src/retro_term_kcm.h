@@ -10,14 +10,18 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QFontDatabase>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
+#include <QSet>
 #include <QSlider>
+#include <QStandardPaths>
 #include <QString>
 #include <QWidget>
 #include <QMap>
@@ -26,14 +30,27 @@
 // Controls which windows receive the CRT effect.
 enum class TargetMode {
     Off        = 0,   // Effect niet actief (lege klasse-lijst)
-    Terminals  = 1,   // Alleen bekende terminal-emulators
-    AllWindows = 2,   // Alle vensters op het scherm
+    Terminals  = 1,   // Gedetecteerde terminal-emulators, per stuk aan/uit te vinken
+    AllWindows = 2,   // Verwijderd uit de UI; alleen nog gebruikt om oude configs te migreren
     Custom     = 3    // Vrije invoer van WM_CLASS namen
 };
 
-// Bekende terminals (gebruikt voor TargetMode::Terminals)
-static const char *KNOWN_TERMINALS =
-    "konsole,cool-retro-term,yakuake,kitty,alacritty,wezterm,xterm,gnome-terminal,tilix";
+// Terminal-kandidaten voor TargetMode::Terminals. "exec" is zowel de naam die
+// QStandardPaths::findExecutable() opzoekt als de token die in targetClasses
+// terechtkomt — het effect vergelijkt daar met een substring-match tegen
+// w->windowClass() tegenaan, dus deze korte namen zijn precies wat moet matchen.
+struct TerminalCandidate { const char *exec; const char *display; };
+static const TerminalCandidate TERMINAL_CANDIDATES[] = {
+    {"konsole",         "Konsole"},
+    {"yakuake",         "Yakuake"},
+    {"kitty",           "Kitty"},
+    {"alacritty",       "Alacritty"},
+    {"wezterm",         "WezTerm"},
+    {"xterm",           "xterm"},
+    {"gnome-terminal",  "GNOME Terminal"},
+    {"tilix",           "Tilix"},
+    {"cool-retro-term", "CoolRetroTerm"},
+};
 
 // ── Preset data ───────────────────────────────────────────────────────────────
 struct PresetValues {
@@ -114,20 +131,34 @@ private:
     void      setTargetMode(TargetMode mode);
     TargetMode currentTargetMode() const;
 
+    // ── Terminal-checklist (TargetMode::Terminals) ────────────────────────────
+    // priorChecked: exec-tokens die al aangevinkt moeten starten (uit een eerder
+    // opgeslagen configuratie, of de huidige widget-staat bij een rescan).
+    void        rebuildTerminalList(const QMap<QString, bool> &priorChecked);
+    QMap<QString, bool> currentTerminalState() const;
+    QStringList checkedTerminalClasses() const;
+    void        updateTerminalSummary();
+    void        updatePresetInfo(const PresetValues &p);
+
     // ── Modus-selector (bovenaan, meest prominent) ────────────────────────────
     QRadioButton *m_modeOff        = nullptr;
     QRadioButton *m_modeTerminals  = nullptr;
-    QRadioButton *m_modeAll        = nullptr;
     QRadioButton *m_modeCustom     = nullptr;
     QButtonGroup *m_modeGroup      = nullptr;
     QWidget      *m_customRow      = nullptr;   // verborgen tenzij Custom
     QLineEdit    *m_targetClasses  = nullptr;   // vrije invoer
     QLabel       *m_customHint     = nullptr;
 
+    QWidget      *m_terminalListWrap = nullptr;   // verborgen tenzij Terminals
+    QListWidget  *m_terminalList     = nullptr;
+    QPushButton  *m_rescanTerminals  = nullptr;
+    QLabel       *m_terminalSummary  = nullptr;
+
     // ── Preset selector ───────────────────────────────────────────────────────
     QComboBox   *m_presetCombo  = nullptr;
     QPushButton *m_applyPreset  = nullptr;
     QPushButton *m_applyKWin    = nullptr;
+    QLabel      *m_presetInfo   = nullptr;   // toont aanbevolen font + resolutie
 
     // ── Parameter widgets ─────────────────────────────────────────────────────
     QMap<QString, ParamRow *>       m_params;
