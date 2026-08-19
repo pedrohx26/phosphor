@@ -3,8 +3,8 @@
 
 #include "retro_term_effect.h"
 
-#include <kwin/effect/effecthandler.h>
-#include <kwin/opengl/glplatform.h>
+#include <effect/effecthandler.h>
+#include <opengl/glplatform.h>
 
 #include <KConfigGroup>
 #include <KSharedConfig>
@@ -59,8 +59,16 @@ void RetroTermEffect::loadShader()
     m_shader = ShaderManager::instance()->generateShaderFromFile(
         ShaderTrait::MapTexture, QString(), fragPath);
 
-    // generateShaderFromFile() returns nullptr when compiling or linking fails.
+    // The two SDKs report failure differently. The kwin-x11 SDK hands back a
+    // non-null but unusable GLShader — for instance when it cannot read the
+    // core-profile variant of the file — and only isValid() reveals that; the
+    // window then renders pure white with no error logged anywhere. The Wayland
+    // SDK dropped isValid() and returns nullptr instead.
+#ifdef RETRO_SHADER_HAS_ISVALID
+    m_valid = m_shader && m_shader->isValid();
+#else
     m_valid = m_shader != nullptr;
+#endif
     if (m_valid)
         qDebug() << "[retro-term] Shader compiled OK from" << fragPath;
     else

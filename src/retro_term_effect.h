@@ -11,15 +11,18 @@
 //   /usr/include/kwin/core/rendertarget.h
 //   /usr/include/kwin/core/renderviewport.h
 
-#include <kwin/effect/effect.h>
-#include <kwin/effect/effecthandler.h>
-#include <kwin/effect/effectwindow.h>
-#include <kwin/effect/offscreeneffect.h>
-#include <kwin/opengl/glshader.h>
-#include <kwin/opengl/glshadermanager.h>
-#include <kwin/opengl/glplatform.h>
-#include <kwin/core/rendertarget.h>
-#include <kwin/core/renderviewport.h>
+// Unprefixed on purpose: Plasma 6.7 ships two incompatible SDKs — /usr/include/kwin
+// for kwin_wayland and /usr/include/kwin-x11 for kwin_x11. The build picks exactly
+// one of them as the include root, so the same sources produce both variants.
+#include <effect/effect.h>
+#include <effect/effecthandler.h>
+#include <effect/effectwindow.h>
+#include <effect/offscreeneffect.h>
+#include <opengl/glshader.h>
+#include <opengl/glshadermanager.h>
+#include <opengl/glplatform.h>
+#include <core/rendertarget.h>
+#include <core/renderviewport.h>
 
 #include <QElapsedTimer>
 #include <QHash>

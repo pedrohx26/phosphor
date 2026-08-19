@@ -12,13 +12,16 @@ Appears in **System Settings → Workspace Behavior → Screen Effects → Phosp
 
 ---
 
-> **Requires a Wayland session.** On Plasma 6.7 the effect renders under
-> `kwin_wayland` but not under `kwin_x11`: binary effect plugins are found,
-> loaded and constructed there, yet never enter the paint chain — `isActive()`
-> is never called and the effect stays out of `activeEffects`. Built-in effects
-> (blur, invert) work fine in the same X11 session, and a minimal do-nothing
-> probe plugin is ignored in exactly the same way, so this is not specific to
-> Phosphor. Measured on kwin 6.7.2 (X11) vs 6.7.3 (Wayland).
+> **Wayland and X11 both work, but they need separate binaries.** Plasma 6.7
+> split KWin into `kwin_wayland` and `kwin_x11`, each with its own library *and*
+> its own SDK, and the two are not ABI-compatible — `KWin::Effect` has 42 vtable
+> slots in `libkwin` against 40 in `libkwin-x11`. A plugin built against the
+> wrong one loads and constructs without complaint, then never paints, because
+> every virtual call from the compositor lands on the wrong slot.
+>
+> `build.sh` handles this: if `/usr/include/kwin-x11` is present it compiles the
+> same sources a second time against that SDK and installs into
+> `qt6/plugins/kwin-x11/effects/plugins/`. Nothing to configure.
 
 ## Quick Start
 
