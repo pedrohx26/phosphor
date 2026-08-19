@@ -420,9 +420,12 @@ void RetroTermKCM::buildUI()
 
         m_modeTerminals = new QRadioButton(
             i18n("Terminals only  —  Konsole, Yakuake, kitty, Alacritty, ..."));
+        // Substitution belongs inside i18n(); QString::arg() afterwards produces the
+        // right text but makes ki18n warn that the placeholder went unfilled, and it
+        // denies translators any control over argument order.
         m_modeTerminals->setToolTip(i18n(
-            "Applies to all known terminal emulators:\n%1")
-            .arg(QString::fromLatin1(KNOWN_TERMINALS)));
+            "Applies to all known terminal emulators:\n%1",
+            QString::fromLatin1(KNOWN_TERMINALS)));
         m_modeGroup->addButton(m_modeTerminals, static_cast<int>(TargetMode::Terminals));
 
         m_modeAll = new QRadioButton(
