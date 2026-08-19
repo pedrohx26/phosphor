@@ -12,6 +12,14 @@ Appears in **System Settings → Workspace Behavior → Screen Effects → Phosp
 
 ---
 
+> **Requires a Wayland session.** On Plasma 6.7 the effect renders under
+> `kwin_wayland` but not under `kwin_x11`: binary effect plugins are found,
+> loaded and constructed there, yet never enter the paint chain — `isActive()`
+> is never called and the effect stays out of `activeEffects`. Built-in effects
+> (blur, invert) work fine in the same X11 session, and a minimal do-nothing
+> probe plugin is ignored in exactly the same way, so this is not specific to
+> Phosphor. Measured on kwin 6.7.2 (X11) vs 6.7.3 (Wayland).
+
 ## Quick Start
 
 ```bash
