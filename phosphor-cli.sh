@@ -40,8 +40,15 @@ kread()  { kreadconfig6  --file kwinrc --group "$CFG_GROUP" --key "$1" 2>/dev/nu
 kwrite() { kwriteconfig6 --file kwinrc --group "$CFG_GROUP" --key "$1" "$2"; }
 
 kwin_reload() {
-    qdbus6 org.kde.KWin /KWin reconfigure 2>/dev/null ||
-    qdbus  org.kde.KWin /KWin reconfigure 2>/dev/null ||
+    # /KWin reconfigure reloads KWin's own settings but does not reach the effects,
+    # so parameter changes appeared to do nothing. reconfigureEffect is the call
+    # that makes an effect re-read its configuration.
+    local qd
+    for qd in qdbus6 qdbus; do
+        command -v "$qd" >/dev/null 2>&1 || continue
+        "$qd" org.kde.KWin /KWin reconfigure >/dev/null 2>&1
+        "$qd" org.kde.KWin /Effects reconfigureEffect retro-term >/dev/null 2>&1 && return 0
+    done
     warn "KWin D-Bus unreachable — restart KWin manually (kwin_wayland --replace &)"
 }
 
@@ -318,6 +325,7 @@ cmd_get() {
             chromaColor saturationColor rbgShift characterSmearing burnIn
             warmupEnabled warmupDuration degaussOnStart degaussDuration
             pixelScale sampleMode targetResX targetResY
+            contentInsetTop contentInsetBottom contentInsetLeft contentInsetRight
             targetMode targetClasses
         )
         for p in "${params[@]}"; do
@@ -423,6 +431,14 @@ cmd_params() {
     rbgShift              0.0–1.0   chromatic aberration
     characterSmearing     0.0–1.0   horizontal character blur
     burnIn                0.0–1.0   phosphor burn-in
+
+  Content area
+    The effect already stops at the window decoration. These trim the terminal's
+    own chrome — menu bar, tab bar, toolbars, scrollbar — which KWin cannot see.
+    contentInsetTop       pixels    e.g. a menu bar or tab bar
+    contentInsetBottom    pixels    e.g. a toolbar
+    contentInsetLeft      pixels
+    contentInsetRight     pixels    e.g. the scrollbar
 
   Animations
     warmupEnabled         true/false

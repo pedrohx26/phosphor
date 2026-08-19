@@ -78,8 +78,12 @@ void RetroTermEffect::loadShader()
 // ── Config ────────────────────────────────────────────────────────────────────
 void RetroTermEffect::loadConfig()
 {
-    KConfigGroup cfg = KSharedConfig::openConfig(QStringLiteral("kwinrc"))
-                           ->group(QStringLiteral("Effect-retro-terminal"));
+    // KSharedConfig hands out a cached object, so without this a live kwinrc edit
+    // followed by "qdbus org.kde.KWin /KWin reconfigure" reads back the values the
+    // effect was constructed with and appears to do nothing.
+    KSharedConfig::Ptr config = KSharedConfig::openConfig(QStringLiteral("kwinrc"));
+    config->reparseConfiguration();
+    KConfigGroup cfg = config->group(QStringLiteral("Effect-retro-terminal"));
 
     const QString cls = cfg.readEntry("targetClasses",
         QStringLiteral("konsole,cool-retro-term,yakuake,kitty,alacritty"));
@@ -94,6 +98,11 @@ void RetroTermEffect::loadConfig()
     m_targetResX  = (float)cfg.readEntry("targetResX", 320.0);
     m_targetResY  = (float)cfg.readEntry("targetResY", 200.0);
     m_sampleMode  = cfg.readEntry("sampleMode", 2);
+
+    m_contentInsetTop    = cfg.readEntry("contentInsetTop",    0);
+    m_contentInsetBottom = cfg.readEntry("contentInsetBottom", 0);
+    m_contentInsetLeft   = cfg.readEntry("contentInsetLeft",   0);
+    m_contentInsetRight  = cfg.readEntry("contentInsetRight",  0);
 
     auto f = [&](const char *k, float d){ return (float)cfg.readEntry(k, (double)d); };
     auto i = [&](const char *k, int   d){ return cfg.readEntry(k, d); };
@@ -210,13 +219,45 @@ void RetroTermEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, Wi
         : 0.0f;
 
     const float timeSec = (float)(nowMs / 1000.0);
-    const QRectF geo = w->frameGeometry();
+
+    // ── Confine the effect to the terminal's content area ─────────────────────
+    // The offscreen texture spans expandedGeometry(): frame, decoration and drop
+    // shadow. contentsRect() is the content area within the frame, so this is
+    // where the terminal itself lives. Handing the shader that sub-rectangle in
+    // texture coordinates keeps the decoration and the shadow untouched, and
+    // keeps scanline spacing tied to the terminal rather than to the window.
+    const QRectF expanded = w->expandedGeometry();
+    QRectF content = QRectF(w->contentsRect()).translated(QRectF(w->frameGeometry()).topLeft());
+
+    // Shave off the terminal's own chrome, if the user configured any. Ignored
+    // when it would leave nothing to draw on.
+    const QRectF trimmed = content.adjusted(m_contentInsetLeft, m_contentInsetTop,
+                                            -m_contentInsetRight, -m_contentInsetBottom);
+    if (trimmed.width() > 1.0 && trimmed.height() > 1.0)
+        content = trimmed;
+
+    // The texture's Y axis runs bottom-up while window geometry runs top-down, so
+    // the vertical edges swap on the way in. X is not flipped. Verified against
+    // the real texture with a shader that colours the low and high edges of each
+    // axis; without the flip a top inset silently trims the bottom instead.
+    QVector4D contentRect(0.0f, 0.0f, 1.0f, 1.0f);
+    QRectF effective = expanded;
+    if (expanded.width() > 0.0 && expanded.height() > 0.0
+        && content.width() > 0.0 && content.height() > 0.0) {
+        contentRect = QVector4D(
+            (float)((content.left()      - expanded.left())   / expanded.width()),
+            (float)((expanded.bottom()   - content.bottom())  / expanded.height()),
+            (float)((content.right()     - expanded.left())   / expanded.width()),
+            (float)((expanded.bottom()   - content.top())     / expanded.height()));
+        effective = content;
+    }
 
     // ── Bind shader and set uniforms ──────────────────────────────────────────
     ShaderManager::instance()->pushShader(m_shader.get());
 
+    m_shader->setUniform("contentRect",         contentRect);
     m_shader->setUniform("resolution",
-        QVector2D((float)geo.width(), (float)geo.height()));
+        QVector2D((float)effective.width(), (float)effective.height()));
     m_shader->setUniform("time",                timeSec);
     m_shader->setUniform("phosphorType",        m_phosphorType);
     m_shader->setUniform("phosphorAgeing",      m_phosphorAgeing);

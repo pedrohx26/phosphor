@@ -65,6 +65,19 @@ uniform float pixelScale;
 uniform vec2  targetRes;
 uniform int   sampleMode;
 
+// The offscreen texture covers the whole window: decoration, shadow and all.
+// contentRect marks the terminal's own content area inside it, as (x0,y0,x1,y1)
+// in texture coordinates. Everything outside is left alone.
+uniform vec4  contentRect;
+
+// Map a coordinate in content space [0,1] onto the texture. Content space runs
+// top-down like the screen; the texture's Y axis runs bottom-up, so it flips here.
+vec2 toTex(vec2 local) {
+    vec2 l = clamp(local, 0.0, 1.0);
+    l.y = 1.0 - l.y;
+    return mix(contentRect.xy, contentRect.zw, l);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Utility
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,9 +148,11 @@ vec2 scaleUV(vec2 uv) {
     }
 }
 
-// Read texel with pixel scaling applied
+// Read texel with pixel scaling applied. uv is in content space, so it is mapped
+// back onto the texture here — this is the only place the shader samples, so the
+// effect can never reach outside the terminal area.
 vec4 sampleScaled(vec2 uv) {
-    return texture(sampler, scaleUV(uv));
+    return texture(sampler, toTex(scaleUV(uv)));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -247,8 +262,23 @@ vec3 applyDegauss(vec3 col, vec2 uv) {
 // Main
 // ─────────────────────────────────────────────────────────────────────────────
 void main() {
+    // 0. Anything outside the terminal's content area — window decoration, drop
+    //    shadow, the toolkit's own chrome around the terminal widget — is passed
+    //    through byte for byte, alpha included, so it looks exactly as KWin drew it.
+    if (any(lessThan(texcoord0, contentRect.xy))
+     || any(greaterThan(texcoord0, contentRect.zw))) {
+        fragColor = texture(sampler, texcoord0);
+        return;
+    }
+
+    // From here on everything works in content space, where [0,1] spans the
+    // terminal area rather than the whole window, and y increases downwards.
+    vec2 local = (texcoord0 - contentRect.xy)
+               / max(contentRect.zw - contentRect.xy, vec2(1e-6));
+    local.y = 1.0 - local.y;
+
     // 1. Barrel distortion (on original UV)
-    vec2 uv = barrel(texcoord0);
+    vec2 uv = barrel(local);
 
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
         fragColor = vec4(0.0, 0.0, 0.0, 1.0);
