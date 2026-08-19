@@ -188,10 +188,10 @@ qdbus6 org.kde.KWin /KWin reconfigure
 | Preset | System | Phosphor | Resolution | Font |
 |--------|--------|----------|------------|------|
 | Apple Macintosh 128K (1984) | 9″ Sony CRT b/w | P4 white | 512×342 | Silkscreen |
-| Sun-3 Workstation (1985) | UNIX lab computer | P4 white | — | Lucida Console |
-| Amiga 500 (1987) | PAL-TV or 1084S RGB | P4 white | 320×256 | Topaz Unicode |
-| Amiga WorkBench 2 (1990) | 1084S RGB monitor | P4 white | 640×256 | Topaz Unicode |
-| NeXT Station (1990) | 1120×832 grayscale | P4 white | 1120×832 | Lucida Console |
+| Sun-3 Workstation (1985) | UNIX lab computer | P4 white | — | DejaVu Sans Mono |
+| Amiga 500 (1987) | PAL-TV or 1084S RGB | P4 white | 320×256 | Topaz (a500/a1000/a2000) |
+| Amiga WorkBench 2 (1990) | 1084S RGB monitor | P4 white | 640×256 | Topaz (a500/a1000/a2000) |
+| NeXT Station (1990) | 1120×832 grayscale | P4 white | 1120×832 | DejaVu Sans Mono |
 
 ### Late DOS / SVGA 1990–1995
 
@@ -317,89 +317,43 @@ Special values for `targetClasses`:
 ## Font Installation
 
 Each preset is designed for a specific font that matches the original hardware's character ROM.
-Below are all font families used by presets, grouped by source.
-
-### int10h Oldschool PC Font Pack (CC BY-SA 4.0)
-
-The largest collection of authentic PC fonts. Contains all IBM, Tandy, Wyse, Kaypro, Compaq, DEC, TeleVideo, Amstrad, NEC, and HP fonts.
-
-**Used by:** IBM 2260^, IBM 3270, Wyse WY-50, IBM MDA, IBM CGA, IBM EGA, Tandy 1000, IBM VGA, Compaq Portable, DEC Rainbow, TeleVideo TVI-925, Amstrad PC1512, NEC APC III, HP 150, Kaypro II
-
-**Install (Arch):**
-```bash
-# AUR package
-yay -S ttf-oldschool-pc-font-pack
-# Or manual download
-curl -LO https://int10h.org/oldschool-pc-fonts/download/oldschool_pc_font_pack_v2.2_linux.zip
-unzip oldschool_pc_font_pack_v2.2_linux.zip -d /tmp/int10h
-cp /tmp/int10h/**/*.ttf ~/.local/share/fonts/
-fc-cache -fv
-```
-
-**Source:** https://int10h.org/oldschool-pc-fonts/
-
-^IBM 2260 uses Glass TTY VT220 (see below)
-
-### VT323 (SIL OFL — Google Fonts)
-
-**Used by:** DEC GT40, DEC VT100, ZX Spectrum, MSX, WarGames, Matrix
+All 30 of them are **vendored in this repo** under [`fonts/`](fonts/), in their original
+unmodified form, grouped by license/source — no network access needed to install them.
 
 ```bash
-# AUR
-yay -S ttf-google-fonts-vt323
-# Or manual
-curl -L "https://fonts.google.com/download?family=VT323" -o /tmp/vt323.zip
-unzip /tmp/vt323.zip -d ~/.local/share/fonts/
-fc-cache -fv
+./install-fonts.sh          # copies every vendored font into ~/.local/share/fonts/retro-terminal
+                             # and installs Terminus via pacman if it's missing
+./install-fonts.sh --status # show which of the 31 presets fonts are currently installed
 ```
 
-### C64 Pro Mono
+Only two fonts are *not* vendored, because they're not really "installed" in the usual
+sense: `DejaVu Sans Mono` (used by NeXT Station and Sun-3 Workstation — ships with virtually
+every desktop Linux already) and `Terminus` (used by SVGA, Trinitron, and the low-GPU preset —
+a distro package, installed via `pacman -S terminus-font`).
 
-**Used by:** Commodore 64, Commodore VIC-20
+See [`fonts/README.md`](fonts/README.md) for the full preset → font → file → license
+mapping, and each subdirectory's own `LICENSE.txt` / `OFL-*.txt` for the exact terms
+that font was vendored under:
 
-**Source:** https://style64.org/c64-truetype
+| Directory | License | Fonts |
+|---|---|---|
+| [`fonts/int10h/`](fonts/int10h/) | CC BY-SA 4.0 | Oldschool PC Font Pack — IBM, Compaq, Kaypro, NEC, Tandy, Wyse, Amstrad, DEC, HP variants |
+| [`fonts/kreativekorp/`](fonts/kreativekorp/) | Kreative Software Free Use License v1.2f | Another Mans Treasure, Antiquarius, Hot CoCo, LisaTerminal, Mizuno, Pet Me, Print Char 21, Project Jason, Shaston |
+| [`fonts/c64-pro-mono/`](fonts/c64-pro-mono/) | style64.org (software-package clause) | C64 Pro Mono |
+| [`fonts/atari-classic/`](fonts/atari-classic/) | Freeware | Atari Classic |
+| [`fonts/amiga-topaz/`](fonts/amiga-topaz/) | GPL Font Exception | Topaz (Amiga 500/WorkBench 2) |
+| [`fonts/google-fonts/`](fonts/google-fonts/) | SIL OFL 1.1 | VT323, Share Tech Mono, Silkscreen |
+| [`fonts/misc/`](fonts/misc/) | Public domain / see upstream | Bedstead, Glass TTY VT220 |
 
-### Topaz Unicode
-
-**Used by:** Amiga 500, Amiga WorkBench 2
-
-**Source:** https://github.com/rewtnull/amigafonts
-
-### Kreativekorp Retro Fonts (free)
-
-Individual downloads for specific systems:
-
-| Font | Used by | Download |
-|------|---------|----------|
-| Pet Me 2Y | Commodore PET 2001 | https://www.kreativekorp.com/swdownload/fonts/retro/petme.zip |
-| Another Man's Treasure | TRS-80 Model I | https://www.kreativekorp.com/swdownload/fonts/retro/amtreasure.zip |
-| Hot CoCo | TRS-80 Color Computer | https://www.kreativekorp.com/swdownload/fonts/retro/hotcoco.zip |
-| LisaTerminal Paper | Apple Lisa | https://www.kreativekorp.com/swdownload/fonts/retro/lisa1.zip |
-| Shaston 320 | Apple IIgs | https://www.kreativekorp.com/swdownload/fonts/retro/shaston.zip |
-| Mizuno | Sharp MZ-700 | https://www.kreativekorp.com/swdownload/fonts/retro/mizuno.zip |
-| Antiquarius | Mattel Aquarius | https://www.kreativekorp.com/swdownload/fonts/retro/aq2.zip |
-| Project Jason | Atari ST SM124 | https://www.kreativekorp.com/swdownload/fonts/retro/projason.zip |
-
-Install any Kreativekorp font:
-```bash
-curl -LO https://www.kreativekorp.com/swdownload/fonts/retro/<package>.zip
-unzip <package>.zip -d /tmp/<package>
-find /tmp/<package> \( -name "*.ttf" -o -name "*.otf" \) -exec cp {} ~/.local/share/fonts/ \;
-fc-cache -fv
-```
-
-### Other Fonts
-
-| Font | Used by | License | Source |
-|------|---------|---------|--------|
-| Share Tech Mono | Radar | SIL OFL | https://fonts.google.com/specimen/Share+Tech+Mono |
-| Silkscreen | Apple Macintosh 128K | SIL OFL | https://kottke.org/plus/type/silkscreen/ |
-| Terminus | SVGA, Trinitron | SIL OFL | https://terminus-font.sourceforge.net/ (`pacman -S terminus-font`) |
-| Bedstead | Teletext, BBC Micro | Free | https://bjh21.me.uk/bedstead/ |
-| Glass TTY VT220 | IBM 2260 | Free | https://github.com/svofski/glasstty |
-| Print Char 21 | Apple II | Free | https://www.kreativekorp.com/software/fonts/apple2/ |
-| Atari Classic | Atari 400/800 | Free | https://www.dafont.com/atari-classic.font |
-| Lucida Console | NeXT Station, Sun-3 | System font | Pre-installed on most systems |
+A few of these fonts had to be tracked down via the Internet Archive's Wayback Machine —
+kreativekorp.com blocks non-browser requests (403/406) and returns nothing to `curl`/`wget`
+even with a normal browser User-Agent, and Atari Classic / C64 Pro Mono's original repos are
+dead. If `install-fonts.sh` ever needs to recover a font that goes missing again, the same
+approach works: query the Wayback CDX API (`https://web.archive.org/cdx/search/cdx?url=<url>&output=json`),
+fetch a snapshot with the `if_` suffix (`https://web.archive.org/web/<timestamp>if_/<url>`) via
+`curl` directly (the `WebFetch`-style tools some agents use block `web.archive.org`), and verify
+the recovered file's actual embedded family name with `fc-scan --format "%{family}\n" <file>` —
+filenames on these sites don't reliably match what's embedded in the font.
 
 ---
 
@@ -408,7 +362,8 @@ fc-cache -fv
 ```text
 phosphor/
 ├── README.md                  This documentation
-├── install-fonts.sh           Standalone font installer (17 font groups)
+├── install-fonts.sh           Standalone font installer (copies fonts/ into place)
+├── fonts/                     Vendored fonts for all 43 presets (see fonts/README.md)
 ├── phosphor-cli.sh            CLI helper: presets, status, set/get params
 ├── src/
 │   ├── build.sh               Fully automated build and install script
