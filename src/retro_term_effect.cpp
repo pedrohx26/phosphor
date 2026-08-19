@@ -11,28 +11,6 @@
 #include <QDebug>
 #include <QFile>
 #include <QStandardPaths>
-// ── Factory macro — tells KWin how to instantiate this plugin ────────────────
-// K_PLUGIN_FACTORY_WITH_JSON must be at global scope (outside any namespaces)
-// for Qt's plugin system to find it.
-#include <KPluginFactory>
-
-class RetroTermEffectFactory : public KPluginFactory
-{
-    Q_OBJECT
-    Q_PLUGIN_METADATA(IID KPluginFactory_iid FILE "metadata.json")
-
-public:
-    QObject *create(const char *iface, QWidget *parentWidget, QObject *parent, const QVariantList &args, const QString &keyword)
-    {
-        Q_UNUSED(iface);
-        Q_UNUSED(parentWidget);
-        Q_UNUSED(parent);
-        Q_UNUSED(args);
-        Q_UNUSED(keyword);
-        return new KWin::RetroTermEffect();
-    }
-};
-
 namespace KWin
 {
 
@@ -45,17 +23,13 @@ RetroTermEffect::RetroTermEffect()
     loadShader();
 
     // Register windows already on screen
-    for (EffectWindow *w : effects->stackingOrder()) {
-        if (isTarget(w))
-            m_windows.insert(w, WindowState{});
-    }
+    for (EffectWindow *w : effects->stackingOrder())
+        updateRedirect(w);
 
-    connect(effects, &EffectsHandler::windowAdded, this, [this](EffectWindow *w) {
-        if (isTarget(w))
-            m_windows.insert(w, WindowState{});
-    });
+    connect(effects, &EffectsHandler::windowAdded, this, &RetroTermEffect::updateRedirect);
     connect(effects, &EffectsHandler::windowClosed, this, [this](EffectWindow *w) {
-        m_windows.remove(w);
+        if (m_windows.remove(w))
+            unredirect(w);
     });
 
     qDebug() << "[retro-term] Loaded. Targeting:" << m_targetClasses.join(u", ");
@@ -85,7 +59,8 @@ void RetroTermEffect::loadShader()
     m_shader = ShaderManager::instance()->generateShaderFromFile(
         ShaderTrait::MapTexture, QString(), fragPath);
 
-    m_valid = m_shader && m_shader->isValid();
+    // generateShaderFromFile() returns nullptr when compiling or linking fails.
+    m_valid = m_shader != nullptr;
     if (m_valid)
         qDebug() << "[retro-term] Shader compiled OK from" << fragPath;
     else
@@ -150,6 +125,30 @@ void RetroTermEffect::loadConfig()
 void RetroTermEffect::reconfigure(ReconfigureFlags /*flags*/)
 {
     loadConfig();
+    // The scope may have changed — re-evaluate every window.
+    for (EffectWindow *w : effects->stackingOrder())
+        updateRedirect(w);
+}
+
+// ── Redirect bookkeeping ──────────────────────────────────────────────────────
+void RetroTermEffect::updateRedirect(EffectWindow *w)
+{
+    if (!w) return;
+    const bool wanted = m_valid && isTarget(w);
+    const bool active = m_windows.contains(w);
+    if (wanted == active)
+        return;
+
+    if (wanted) {
+        m_windows.insert(w, WindowState{});
+        redirect(w);
+        setShader(w, m_shader.get());
+        w->addRepaintFull();
+    } else {
+        m_windows.remove(w);
+        unredirect(w);
+        w->addRepaintFull();
+    }
 }
 
 // ── Target detection ──────────────────────────────────────────────────────────
@@ -169,20 +168,21 @@ bool RetroTermEffect::isTarget(EffectWindow *w) const
 }
 
 // ── Paint ─────────────────────────────────────────────────────────────────────
-void RetroTermEffect::paintWindow(const RenderTarget &renderTarget,
-                                   const RenderViewport &viewport,
-                                   EffectWindow *w,
-                                   int mask,
-                                   const Region &deviceRegion,
-                                   WindowPaintData &data)
+// Called by OffscreenEffect::drawWindow() right before the redirected texture is
+// drawn with our shader. Uniform values live in the program object, so binding
+// here and unbinding again leaves them in place for the actual draw.
+void RetroTermEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, WindowQuadList &quads)
 {
-    if (!m_valid || !isTarget(w)) {
-        effects->paintWindow(renderTarget, viewport, w, mask, deviceRegion, data);
+    Q_UNUSED(mask);
+    Q_UNUSED(data);
+    Q_UNUSED(quads);
+
+    auto it = m_windows.find(w);
+    if (!m_valid || it == m_windows.end())
         return;
-    }
 
     // ── Per-window delta-time ─────────────────────────────────────────────────
-    auto &ws = m_windows[w];
+    auto &ws = *it;
     const qint64 nowMs = m_wallClock.elapsed();
     if (ws.lastPaintMs < 0) ws.lastPaintMs = nowMs;
     const double deltaS = qMin((nowMs - ws.lastPaintMs) / 1000.0, 0.1); // cap at 100ms
@@ -241,9 +241,6 @@ void RetroTermEffect::paintWindow(const RenderTarget &renderTarget,
     m_shader->setUniform("targetRes",           QVector2D(m_targetResX, m_targetResY));
     m_shader->setUniform("sampleMode",          m_sampleMode);
 
-    // Paint the window — KWin's compositing pipeline renders it through our shader
-    effects->paintWindow(renderTarget, viewport, w, mask, deviceRegion, data);
-
     ShaderManager::instance()->popShader();
 
     // Request continuous repaint for animated / noisy effects
@@ -259,8 +256,15 @@ void RetroTermEffect::paintWindow(const RenderTarget &renderTarget,
 // ── supported() ──────────────────────────────────────────────────────────────
 bool RetroTermEffect::supported()
 {
-    return effects->isOpenGLCompositing();
+    return effects->isOpenGLCompositing() && OffscreenEffect::supported();
 }
+
+// ── Factory ──────────────────────────────────────────────────────────────────
+// Must use KWin's own macro: KWin looks the plugin up by EffectPluginFactory_iid
+// ("org.kde.kwin.EffectPluginFactory" + KWin version). A plain KPluginFactory
+// with KPluginFactory_iid compiles and installs fine but is never loaded.
+KWIN_EFFECT_FACTORY_SUPPORTED(RetroTermEffect, "metadata.json",
+                              return RetroTermEffect::supported();)
 
 } // namespace KWin
 

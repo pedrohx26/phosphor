@@ -46,9 +46,13 @@ target_link_libraries(kwin_effect_retro_term PRIVATE
     KWin::kwin
 )
 
-# The plugin file must not have a "lib" prefix — KWin loads it by exact name
+# KWin derives the effect id from the plugin's file name, so the file must be
+# named exactly "retro-term.so" — that id is what ends up in kwinrc as
+# [Plugins] retro-termEnabled and what loadEffect()/isEffectLoaded() expect.
+# No "lib" prefix either.
 set_target_properties(kwin_effect_retro_term PROPERTIES
     PREFIX ""
+    OUTPUT_NAME "retro-term"
 )
 
 # ── Effect configuration module (Settings button) ────────────────────────────

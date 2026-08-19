@@ -14,6 +14,7 @@
 #include <kwin/effect/effect.h>
 #include <kwin/effect/effecthandler.h>
 #include <kwin/effect/effectwindow.h>
+#include <kwin/effect/offscreeneffect.h>
 #include <kwin/opengl/glshader.h>
 #include <kwin/opengl/glshadermanager.h>
 #include <kwin/opengl/glplatform.h>
@@ -28,7 +29,10 @@
 namespace KWin
 {
 
-class RetroTermEffect : public Effect
+// The window must be rendered into an offscreen texture first — only then can a
+// custom fragment shader be applied to it. Plain Effect::paintWindow() cannot do
+// this: KWin's scene binds its own shader per render node and would discard ours.
+class RetroTermEffect : public OffscreenEffect
 {
     Q_OBJECT
 
@@ -36,21 +40,18 @@ public:
     RetroTermEffect();
     ~RetroTermEffect() override;
 
-    void paintWindow(const RenderTarget &renderTarget,
-                     const RenderViewport &viewport,
-                     EffectWindow *w,
-                     int mask,
-                     const Region &deviceRegion,
-                     WindowPaintData &data) override;
-
-    bool isActive() const override { return true; }
+    bool isActive() const override { return !m_windows.isEmpty(); }
     static bool supported();
     void reconfigure(ReconfigureFlags flags) override;
+
+protected:
+    void apply(EffectWindow *w, int mask, WindowPaintData &data, WindowQuadList &quads) override;
 
 private:
     void loadShader();
     void loadConfig();
     bool isTarget(EffectWindow *w) const;
+    void updateRedirect(EffectWindow *w);
 
     struct WindowState {
         double warmupElapsed  = 0.0;   // seconds since window opened

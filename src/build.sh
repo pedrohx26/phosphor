@@ -94,10 +94,11 @@ if [[ $DO_UNINSTALL -eq 1 ]]; then
         /usr/lib/kwin/effects/plugins \
         "$PREFIX/lib/qt6/plugins/kwin/effects/plugins"
     do
-        f="$d/kwin_effect_retro_term.so"
-        if [[ -f "$f" ]]; then
-            run_as_root rm -f "$f" && ok "Removed: $f" || warn "Could not remove: $f"
-        fi
+        for f in "$d/retro-term.so" "$d/kwin_effect_retro_term.so"; do
+            if [[ -f "$f" ]]; then
+                run_as_root rm -f "$f" && ok "Removed: $f" || warn "Could not remove: $f"
+            fi
+        done
     done
         run_as_root rm -rf /usr/share/kwin/effects/retro-term \
                   "$PREFIX/share/kwin/effects/retro-term" \
@@ -266,6 +267,7 @@ banner "Cleaning stale installs"
 # can shadow discovery in Desktop Effects.
 run_as_root rm -f \
     /usr/lib/qt/plugins/kwin/effects/plugins/kwin_effect_retro_term.so \
+    /usr/lib/qt6/plugins/kwin/effects/plugins/kwin_effect_retro_term.so \
     /usr/lib/qt/plugins/plasma/kcms/systemsettings_qwidgets/kcm_retro_term.so \
     /usr/lib/qt6/plugins/plasma/kcms/systemsettings_qwidgets/kcm_retro_term.so \
     /usr/lib/qt6/plugins/kwin/effects/configs/kcm_retro_term.so \
@@ -289,8 +291,8 @@ for d in \
     /usr/lib/qt6/plugins/kwin/effects/plugins \
     /usr/lib/kwin/effects/plugins
 do
-    if [[ -f "$d/kwin_effect_retro_term.so" ]]; then
-        ok "Plugin: $d/kwin_effect_retro_term.so"
+    if [[ -f "$d/retro-term.so" ]]; then
+        ok "Plugin: $d/retro-term.so"
         PLUGIN_FOUND=1
         break
     fi
@@ -359,8 +361,10 @@ echo -e "  ${BOLD}Enable effect:${NC}"
 echo -e "  System Settings -> Workspace Behavior -> Screen Effects -> '${BOLD}Phosphor CRT${NC}'"
 echo ""
 echo -e "  ${BOLD}Or via command line:${NC}"
-echo -e "  kwriteconfig6 --file kwinrc --group Effect-retro-terminal --key warmupEnabled true"
-echo -e "  qdbus6 org.kde.KWin /KWin reconfigure"
+echo -e "  kwriteconfig6 --file kwinrc --group Plugins --key retro-termEnabled true"
+echo -e "  qdbus6 org.kde.KWin /Effects loadEffect retro-term"
+echo -e "  ${DIM}(reconfigure alone does not pick up a plugin file that is new since"
+echo -e "   KWin started — use loadEffect, or log out and back in)${NC}"
 echo ""
 echo -e "  ${BOLD}Rebuild after a KWin update:${NC}"
 echo -e "  ./build.sh --rebuild"
