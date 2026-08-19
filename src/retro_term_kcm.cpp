@@ -553,8 +553,7 @@ void RetroTermKCM::buildUI()
 
     m_tabs = new QTabWidget;
     m_tabs->addTab(scrollWrap(buildGeneralTab()), i18n("General"));
-    m_tabs->addTab(scrollWrap(buildPresetsTab()), i18n("Presets"));
-    m_tabs->addTab(scrollWrap(buildFontsTab()),   i18n("Fonts"));
+    m_tabs->addTab(scrollWrap(buildSetupTab()),   i18n("Setup"));
     // Effects tab already builds its own internal QScrollArea (needed there
     // regardless, for the sidebar+stack layout) — wrapping it again would just
     // nest two scroll areas around the same content for no benefit.
@@ -735,72 +734,87 @@ QWidget *RetroTermKCM::buildGeneralTab()
     return page;
 }
 
-// ── Tabblad: Presets ──────────────────────────────────────────────────────────
-QWidget *RetroTermKCM::buildPresetsTab()
+// ── Tabblad: Setup ────────────────────────────────────────────────────────────
+// Preset, font, and screen resolution used to be three separate tabs. They're
+// really one decision made in three parts: pick an era, get its font and
+// pixel size along with it. Splitting that across tabs meant picking a
+// preset on one tab, then hunting across two more tabs to see (and act on)
+// what it had just set — reworked into one tab so the whole "what machine am
+// I simulating" choice reads top to bottom in one place. Effects (how it
+// looks — bloom, scanlines, noise, ...) stays separate: that's a distinct,
+// much larger decision space, and now has its own sidebar navigation.
+QWidget *RetroTermKCM::buildSetupTab()
 {
     auto *page      = new QWidget;
     auto *outerVBox = new QVBoxLayout(page);
     outerVBox->setSpacing(8);
 
-    {
-        auto *pgb = new QGroupBox(i18n("Historical preset"));
-        auto *pfl = new QFormLayout(pgb);
-
-        m_presetCombo = new QComboBox;
-        m_presetCombo->addItem(i18n("— Choose a preset —"));
-        for (const auto &pv : m_presets)
-            m_presetCombo->addItem(pv.name);
-
-        m_applyPreset = new QPushButton(i18n("Load preset"));
-        m_applyPreset->setEnabled(false);
-
-        pfl->addRow(i18n("Preset:"), m_presetCombo);
-
-        // Shows the preset's recommended font and target resolution the moment it's
-        // picked — before "Load preset" is even clicked — since neither is something
-        // this effect can set for you: the font lives in the terminal emulator's own
-        // profile, entirely outside what a KWin effect can reach.
-        m_presetInfo = new QLabel;
-        m_presetInfo->setTextFormat(Qt::RichText);
-        m_presetInfo->setWordWrap(true);
-        pfl->addRow(QString(), m_presetInfo);
-
-        auto *btnRow = new QHBoxLayout;
-        btnRow->addWidget(m_applyPreset);
-        btnRow->addStretch();
-        pfl->addRow(QString(), btnRow);
-
-        connect(m_presetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this](int idx) {
-            m_applyPreset->setEnabled(idx > 0);
-            updatePresetInfo(idx > 0 ? m_presets.at(idx - 1) : PresetValues{});
-        });
-        connect(m_applyPreset, &QPushButton::clicked, this, [this] {
-            const int idx = m_presetCombo->currentIndex();
-            if (idx > 0) applyPreset(m_presets.at(idx - 1));
-        });
-
-        outerVBox->addWidget(pgb);
-    }
-
+    outerVBox->addWidget(buildPresetSection());
+    outerVBox->addWidget(buildFontSection());
+    outerVBox->addWidget(buildScreenSection());
     outerVBox->addStretch();
+
     return page;
 }
 
-// ── Tabblad: Fonts ────────────────────────────────────────────────────────────
-// Dit tabblad bestaat omdat een KWin-effect het lettertype van een terminal
+// ── Setup-onderdeel: preset ───────────────────────────────────────────────────
+QGroupBox *RetroTermKCM::buildPresetSection()
+{
+    auto *pgb = new QGroupBox(i18n("Historical preset"));
+    auto *pfl = new QFormLayout(pgb);
+
+    m_presetCombo = new QComboBox;
+    m_presetCombo->addItem(i18n("— Choose a preset —"));
+    for (const auto &pv : m_presets)
+        m_presetCombo->addItem(pv.name);
+
+    m_applyPreset = new QPushButton(i18n("Load preset"));
+    m_applyPreset->setEnabled(false);
+
+    pfl->addRow(i18n("Preset:"), m_presetCombo);
+
+    // Shows the preset's recommended font and target resolution the moment it's
+    // picked — before "Load preset" is even clicked — since neither is something
+    // this effect can set for you: the font lives in the terminal emulator's own
+    // profile, entirely outside what a KWin effect can reach.
+    m_presetInfo = new QLabel;
+    m_presetInfo->setTextFormat(Qt::RichText);
+    m_presetInfo->setWordWrap(true);
+    pfl->addRow(QString(), m_presetInfo);
+
+    auto *btnRow = new QHBoxLayout;
+    btnRow->addWidget(m_applyPreset);
+    btnRow->addStretch();
+    pfl->addRow(QString(), btnRow);
+
+    connect(m_presetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int idx) {
+        m_applyPreset->setEnabled(idx > 0);
+        updatePresetInfo(idx > 0 ? m_presets.at(idx - 1) : PresetValues{});
+    });
+    connect(m_applyPreset, &QPushButton::clicked, this, [this] {
+        const int idx = m_presetCombo->currentIndex();
+        if (idx > 0) applyPreset(m_presets.at(idx - 1));
+    });
+
+    return pgb;
+}
+
+// Dit onderdeel bestaat omdat een KWin-effect het lettertype van een terminal
 // principieel niet kán zetten: KWin krijgt het venster pas te zien nadat de
 // terminal de glyphs al gerasterd heeft, en verwerkt alleen die kant-en-klare
 // pixels na. Het font is en blijft een instelling van de terminal zelf. De enige
 // eerlijke manier om een preset-font toch te laten werken, is het in het profiel
-// van die terminal schrijven — wat dit tabblad voor Konsole doet.
-QWidget *RetroTermKCM::buildFontsTab()
+// van die terminal schrijven — wat deze sectie voor Konsole doet.
+QGroupBox *RetroTermKCM::buildFontSection()
 {
-    auto *page = new QWidget;
-    auto *vb   = new QVBoxLayout(page);
-    vb->setSpacing(10);
+    QFormLayout *fl = nullptr;
+    auto *gb = makeGroup(i18n("Font"), fl);
 
     {
+        // Explanation lives as the group's first row rather than a separate
+        // label above it — this section moved into the combined Setup tab,
+        // where a floating label before a GroupBox reads as detached from it.
         auto *expl = new QLabel(i18n(
             "<p>A KWin effect post-processes pixels that the terminal has "
             "<i>already drawn</i>, so it cannot pick the font those characters "
@@ -815,13 +829,10 @@ QWidget *RetroTermKCM::buildFontsTab()
             "</ul>"));
         expl->setWordWrap(true);
         expl->setTextFormat(Qt::RichText);
-        vb->addWidget(expl);
+        fl->addRow(expl);
     }
 
     {
-        QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Apply the preset font to Konsole"), fl);
-
         m_fontRecommend = new QLabel;
         m_fontRecommend->setTextFormat(Qt::RichText);
         m_fontRecommend->setWordWrap(true);
@@ -892,14 +903,11 @@ QWidget *RetroTermKCM::buildFontsTab()
         m_fontStatus->setTextFormat(Qt::RichText);
         m_fontStatus->setWordWrap(true);
         fl->addRow(QString(), m_fontStatus);
-
-        vb->addWidget(gb);
     }
 
     refreshKonsoleProfiles();
     updateFontTabInfo();
-    vb->addStretch();
-    return page;
+    return gb;
 }
 
 // ── Tabblad: Effecten ─────────────────────────────────────────────────────────
@@ -1031,119 +1039,122 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addPage(i18n("Animations"), gb);
     }
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // PIXEL SCALING
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    {
-        QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Pixel scaling — simulate original screen resolution"), fl);
-        gb->setToolTip(i18n(
-            "Downscales the window image to the original pixel resolution of the "
-            "historical system, then scales it back up to full screen.\n"
-            "0.0 = no scaling (modern display)\n"
-            "1.0 = exact original pixels (true-size block pixels)\n"
-            "Values in between blend both views."));
-
-        // Hoofdslider
-        m_pixelScaleRow = new ParamRow(
-            i18n("Pixel scale:"), 0.0, 1.0, 0.01,
-            i18n("0.0 = no scaling  |  1.0 = exact original pixels"),
-            gb);
-        fl->addRow(i18n("Pixel scale:"), m_pixelScaleRow);
-        connect(m_pixelScaleRow, &ParamRow::valueChanged,
-                this, &RetroTermKCM::markChanged);
-        // At pixelScale 0 the width/height fields (and the quick-pick buttons
-        // beside them) are inert — the shader ignores targetRes entirely. Left
-        // enabled, they read as "set" when they do nothing; graying the whole
-        // row out the moment scaling is off makes that state visible instead of
-        // something you have to already know from the tooltip.
-        connect(m_pixelScaleRow, &ParamRow::valueChanged, this, [this](double v) {
-            if (m_targetResRow) m_targetResRow->setEnabled(v > 0.001);
-        });
-
-        // Sampling-modus combobox
-        m_sampleModeCombo = new QComboBox;
-        m_sampleModeCombo->addItem(i18n("Nearest-neighbour  —  hard block pixels (classic)"));
-        m_sampleModeCombo->addItem(i18n("Bilinear  —  smooth, good for mid values"));
-        m_sampleModeCombo->addItem(i18n("Sharp bilinear  —  CRT-like: crisp edges, low aliasing"));
-        m_sampleModeCombo->setCurrentIndex(2);
-        m_sampleModeCombo->setToolTip(i18n(
-            "Nearest: true block pixels like original hardware.\n"
-            "Bilinear: smooth interpolation, good at pixelScale 0.3–0.7.\n"
-            "Sharp bilinear: simulates a CRT Gaussian beam — "
-            "crisp pixel edges without harsh stair-stepping. Recommended."));
-        fl->addRow(i18n("Sampling:"), m_sampleModeCombo);
-        connect(m_sampleModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, &RetroTermKCM::markChanged);
-
-        // Originele resolutie-invoer
-        // Automatisch ingevuld bij preset laden, handmatig aanpasbaar
-        m_targetResRow = new QWidget;
-        auto *rhl = new QHBoxLayout(m_targetResRow);
-        rhl->setContentsMargins(0, 0, 0, 0);
-        rhl->addWidget(new QLabel(i18n("Width:")));
-        m_targetResX = new QDoubleSpinBox;
-        m_targetResX->setRange(40, 3840);
-        m_targetResX->setDecimals(0);
-        m_targetResX->setSingleStep(8);
-        m_targetResX->setValue(320);
-        m_targetResX->setToolTip(i18n("Original horizontal resolution of the historical system (pixels)"));
-        rhl->addWidget(m_targetResX);
-        rhl->addSpacing(12);
-        rhl->addWidget(new QLabel(i18n("Height:")));
-        m_targetResY = new QDoubleSpinBox;
-        m_targetResY->setRange(24, 2160);
-        m_targetResY->setDecimals(0);
-        m_targetResY->setSingleStep(8);
-        m_targetResY->setValue(200);
-        m_targetResY->setToolTip(i18n("Original vertical resolution of the historical system (pixels)"));
-        rhl->addWidget(m_targetResY);
-        rhl->addStretch();
-
-        // Snelkeuze-knopjes voor veelvoorkomende resoluties
-        auto addRes = [&](const QString &lbl, int w, int h) {
-            auto *btn = new QPushButton(lbl);
-            btn->setFixedWidth(90);
-            btn->setToolTip(QStringLiteral("%1 × %2").arg(w).arg(h));
-            rhl->addWidget(btn);
-            connect(btn, &QPushButton::clicked, this, [this, w, h] {
-                m_targetResX->setValue(w);
-                m_targetResY->setValue(h);
-                markChanged();
-            });
-        };
-        addRes(i18n("320×200"),  320, 200);
-        addRes(i18n("640×200"),  640, 200);
-        addRes(i18n("640×480"),  640, 480);
-        addRes(i18n("720×350"),  720, 350);
-
-        fl->addRow(i18n("Original res.:"), m_targetResRow);
-        // setValue() only emits valueChanged on an actual change, so the row's
-        // enabled state needs one explicit sync here — load() calling
-        // setValue(0.0) on a slider that already defaults to 0.0 fires no
-        // signal at all, and the row would otherwise start enabled regardless.
-        m_targetResRow->setEnabled(m_pixelScaleRow->value() > 0.001);
-
-        connect(m_targetResX, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-                this, &RetroTermKCM::markChanged);
-        connect(m_targetResY, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-                this, &RetroTermKCM::markChanged);
-
-        // Info-label
-        auto *info = new QLabel(i18n(
-            "<small><i>Tip: load a preset — original resolution is filled automatically.<br>"
-            "At pixelScale = 0.0, resolution has no visual effect.</i></small>"));
-        info->setWordWrap(true);
-        fl->addRow(QString(), info);
-
-        addPage(i18n("Pixel Scaling"), gb);
-    }
-
     nav->setCurrentRow(0);
     connect(nav, &QListWidget::currentRowChanged, stack, &QStackedWidget::setCurrentIndex);
 
     outerVBox->addWidget(splitter, 1);
     return page;
+}
+
+// Pixel scaling moved out of Effects and into the Setup tab: it isn't a look
+// parameter you tune by eye like bloom or scanlines, it's "what resolution was
+// this machine" — the same category of decision as which preset or font you
+// picked, and it belongs next to those, not buried as one more entry in an
+// eight-item effects sidebar.
+QGroupBox *RetroTermKCM::buildScreenSection()
+{
+    QFormLayout *fl = nullptr;
+    auto *gb = makeGroup(i18n("Screen resolution — simulate original pixel size"), fl);
+    gb->setToolTip(i18n(
+        "Downscales the window image to the original pixel resolution of the "
+        "historical system, then scales it back up to full screen.\n"
+        "0.0 = no scaling (modern display)\n"
+        "1.0 = exact original pixels (true-size block pixels)\n"
+        "Values in between blend both views."));
+
+    // Hoofdslider
+    m_pixelScaleRow = new ParamRow(
+        i18n("Pixel scale:"), 0.0, 1.0, 0.01,
+        i18n("0.0 = no scaling  |  1.0 = exact original pixels"),
+        gb);
+    fl->addRow(i18n("Pixel scale:"), m_pixelScaleRow);
+    connect(m_pixelScaleRow, &ParamRow::valueChanged,
+            this, &RetroTermKCM::markChanged);
+    // At pixelScale 0 the width/height fields (and the quick-pick buttons
+    // beside them) are inert — the shader ignores targetRes entirely. Left
+    // enabled, they read as "set" when they do nothing; graying the whole
+    // row out the moment scaling is off makes that state visible instead of
+    // something you have to already know from the tooltip.
+    connect(m_pixelScaleRow, &ParamRow::valueChanged, this, [this](double v) {
+        if (m_targetResRow) m_targetResRow->setEnabled(v > 0.001);
+    });
+
+    // Sampling-modus combobox
+    m_sampleModeCombo = new QComboBox;
+    m_sampleModeCombo->addItem(i18n("Nearest-neighbour  —  hard block pixels (classic)"));
+    m_sampleModeCombo->addItem(i18n("Bilinear  —  smooth, good for mid values"));
+    m_sampleModeCombo->addItem(i18n("Sharp bilinear  —  CRT-like: crisp edges, low aliasing"));
+    m_sampleModeCombo->setCurrentIndex(2);
+    m_sampleModeCombo->setToolTip(i18n(
+        "Nearest: true block pixels like original hardware.\n"
+        "Bilinear: smooth interpolation, good at pixelScale 0.3–0.7.\n"
+        "Sharp bilinear: simulates a CRT Gaussian beam — "
+        "crisp pixel edges without harsh stair-stepping. Recommended."));
+    fl->addRow(i18n("Sampling:"), m_sampleModeCombo);
+    connect(m_sampleModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &RetroTermKCM::markChanged);
+
+    // Originele resolutie-invoer
+    // Automatisch ingevuld bij preset laden, handmatig aanpasbaar
+    m_targetResRow = new QWidget;
+    auto *rhl = new QHBoxLayout(m_targetResRow);
+    rhl->setContentsMargins(0, 0, 0, 0);
+    rhl->addWidget(new QLabel(i18n("Width:")));
+    m_targetResX = new QDoubleSpinBox;
+    m_targetResX->setRange(40, 3840);
+    m_targetResX->setDecimals(0);
+    m_targetResX->setSingleStep(8);
+    m_targetResX->setValue(320);
+    m_targetResX->setToolTip(i18n("Original horizontal resolution of the historical system (pixels)"));
+    rhl->addWidget(m_targetResX);
+    rhl->addSpacing(12);
+    rhl->addWidget(new QLabel(i18n("Height:")));
+    m_targetResY = new QDoubleSpinBox;
+    m_targetResY->setRange(24, 2160);
+    m_targetResY->setDecimals(0);
+    m_targetResY->setSingleStep(8);
+    m_targetResY->setValue(200);
+    m_targetResY->setToolTip(i18n("Original vertical resolution of the historical system (pixels)"));
+    rhl->addWidget(m_targetResY);
+    rhl->addStretch();
+
+    // Snelkeuze-knopjes voor veelvoorkomende resoluties
+    auto addRes = [&](const QString &lbl, int w, int h) {
+        auto *btn = new QPushButton(lbl);
+        btn->setFixedWidth(90);
+        btn->setToolTip(QStringLiteral("%1 × %2").arg(w).arg(h));
+        rhl->addWidget(btn);
+        connect(btn, &QPushButton::clicked, this, [this, w, h] {
+            m_targetResX->setValue(w);
+            m_targetResY->setValue(h);
+            markChanged();
+        });
+    };
+    addRes(i18n("320×200"),  320, 200);
+    addRes(i18n("640×200"),  640, 200);
+    addRes(i18n("640×480"),  640, 480);
+    addRes(i18n("720×350"),  720, 350);
+
+    fl->addRow(i18n("Original res.:"), m_targetResRow);
+    // setValue() only emits valueChanged on an actual change, so the row's
+    // enabled state needs one explicit sync here — load() calling
+    // setValue(0.0) on a slider that already defaults to 0.0 fires no
+    // signal at all, and the row would otherwise start enabled regardless.
+    m_targetResRow->setEnabled(m_pixelScaleRow->value() > 0.001);
+
+    connect(m_targetResX, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &RetroTermKCM::markChanged);
+    connect(m_targetResY, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &RetroTermKCM::markChanged);
+
+    // Info-label
+    auto *info = new QLabel(i18n(
+        "<small><i>Tip: load a preset — original resolution is filled automatically.<br>"
+        "At pixelScale = 0.0, resolution has no visual effect.</i></small>"));
+    info->setWordWrap(true);
+    fl->addRow(QString(), info);
+
+    return gb;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1157,6 +1168,13 @@ void RetroTermKCM::reconfigureKWinEffect()
     QDBusInterface fx(QStringLiteral("org.kde.KWin"),
                       QStringLiteral("/Effects"),
                       QStringLiteral("org.kde.kwin.Effects"));
+    // loadEffect() is safe to call on an already-loaded effect (KWin just
+    // no-ops) and is the only way an effect that was never enabled — the
+    // Plugins/retro-termEnabled flag save() now sets is only read by KWin at
+    // its own startup — actually starts running in the *current* KWin
+    // process, rather than requiring a logout or a full "kwin --replace"
+    // before any of this KCM's settings become visible at all.
+    fx.call(QStringLiteral("loadEffect"), QStringLiteral("retro-term"));
     fx.call(QStringLiteral("reconfigureEffect"), QStringLiteral("retro-term"));
 }
 
@@ -1523,6 +1541,19 @@ void RetroTermKCM::save()
     if (m_sampleModeCombo) grp.writeEntry("sampleMode",  m_sampleModeCombo->currentIndex());
     if (m_targetResX)      grp.writeEntry("targetResX",  m_targetResX->value());
     if (m_targetResY)      grp.writeEntry("targetResY",  m_targetResY->value());
+
+    // This KCM is reached by clicking the effect's own config icon in Desktop
+    // Effects, which implies it's already enabled there — but it's just as
+    // reachable directly (search "Retro Terminal" in System Settings, or the
+    // "phosphor" CLI), and someone who only ever opens *this* page could
+    // configure all 30 parameters perfectly and still see nothing, because
+    // KWin only auto-loads effects marked enabled here at its own startup.
+    // "Off" mode is intentionally NOT wired to this flag — TargetMode::Off
+    // means an empty target-class list, i.e. the effect stays loaded and
+    // enabled but matches no window, exactly as m_modeOff's tooltip already
+    // promises ("stays loaded but does nothing").
+    KConfigGroup plugins = cfg->group(QStringLiteral("Plugins"));
+    plugins.writeEntry("retro-termEnabled", true);
 
     cfg->sync();
     setNeedsSave(false);

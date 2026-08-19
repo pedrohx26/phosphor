@@ -125,8 +125,10 @@ private:
     void      buildPresets();
     void      buildUI();
     QWidget  *buildGeneralTab();
-    QWidget  *buildPresetsTab();
-    QWidget  *buildFontsTab();
+    QWidget  *buildSetupTab();
+    QGroupBox *buildPresetSection();
+    QGroupBox *buildFontSection();
+    QGroupBox *buildScreenSection();
     QWidget  *buildEffectsTab();
     QGroupBox *makeGroup(const QString &title, QFormLayout *&layout);
     // Wraps a tab page in a QScrollArea so it degrades gracefully on a short/
