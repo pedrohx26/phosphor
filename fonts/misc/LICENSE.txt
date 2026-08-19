@@ -1,0 +1,8 @@
+Bedstead.otf
+    By Ben Harris — https://bjh21.me.uk/bedstead/
+    Dedicated to the public domain.
+
+Glass_TTY_VT220.ttf
+    "Glass TTY VT220" — https://github.com/svofski/glasstty
+    See the upstream repository for full licensing details; distributed
+    there for free use in terminal emulators.
