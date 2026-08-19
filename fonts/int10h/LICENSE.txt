@@ -1,0 +1,19 @@
+The Oldschool PC Font Pack
+by VileR — https://int10h.org/oldschool-pc-fonts/
+
+Licensed under the Creative Commons Attribution-ShareAlike 4.0
+International License (CC BY-SA 4.0):
+
+    https://creativecommons.org/licenses/by-sa/4.0/
+
+You are free to share and adapt this material for any purpose, even
+commercially, as long as you give appropriate credit, provide a link to
+the license, indicate if changes were made, and distribute any derivative
+works under the same license.
+
+Attribution: "Oldschool PC Font Pack" by VileR, https://int10h.org/oldschool-pc-fonts/,
+licensed under CC BY-SA 4.0.
+
+The font files in this directory are an unmodified subset of the full pack,
+downloaded from:
+    https://int10h.org/oldschool-pc-fonts/download/oldschool_pc_font_pack_v2.2_FULL.zip

@@ -1,0 +1,12 @@
+Multi Platform Amiga Fonts v1.02 — Topaz
+by TrueSchool Ascii, ttf/fon/eot/raw/psf conversions (c) dMG/t!s^dS!
+Topaz itself is (c) Amiga Inc.
+
+Source: https://github.com/rewtnull/amigafonts
+
+Released under the GPL Font Exception:
+    https://www.gnu.org/licenses/gpl-faq.html#FontException
+
+This lets the font be embedded in and distributed alongside GPL and
+non-GPL software alike, without the software itself becoming subject
+to the GPL — only modified versions of the font itself would be.
