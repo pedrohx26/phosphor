@@ -210,13 +210,34 @@ void RetroTermEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, Wi
         : 0.0f;
 
     const float timeSec = (float)(nowMs / 1000.0);
-    const QRectF geo = w->frameGeometry();
+
+    // ── Confine the effect to the terminal's content area ─────────────────────
+    // The offscreen texture spans expandedGeometry(): frame, decoration and drop
+    // shadow. contentsRect() is the content area within the frame, so this is
+    // where the terminal itself lives. Handing the shader that sub-rectangle in
+    // texture coordinates keeps the decoration and the shadow untouched, and
+    // keeps scanline spacing tied to the terminal rather than to the window.
+    const QRectF expanded = w->expandedGeometry();
+    const QRectF content  = QRectF(w->contentsRect()).translated(QRectF(w->frameGeometry()).topLeft());
+
+    QVector4D contentRect(0.0f, 0.0f, 1.0f, 1.0f);
+    QRectF effective = expanded;
+    if (expanded.width() > 0.0 && expanded.height() > 0.0
+        && content.width() > 0.0 && content.height() > 0.0) {
+        contentRect = QVector4D(
+            (float)((content.left()   - expanded.left()) / expanded.width()),
+            (float)((content.top()    - expanded.top())  / expanded.height()),
+            (float)((content.right()  - expanded.left()) / expanded.width()),
+            (float)((content.bottom() - expanded.top())  / expanded.height()));
+        effective = content;
+    }
 
     // ── Bind shader and set uniforms ──────────────────────────────────────────
     ShaderManager::instance()->pushShader(m_shader.get());
 
+    m_shader->setUniform("contentRect",         contentRect);
     m_shader->setUniform("resolution",
-        QVector2D((float)geo.width(), (float)geo.height()));
+        QVector2D((float)effective.width(), (float)effective.height()));
     m_shader->setUniform("time",                timeSec);
     m_shader->setUniform("phosphorType",        m_phosphorType);
     m_shader->setUniform("phosphorAgeing",      m_phosphorAgeing);
