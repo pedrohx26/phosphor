@@ -69,7 +69,18 @@ The scope selector at the top determines which windows get the effect:
 | **Off** | Nothing — effect stays loaded but inactive |
 | **Terminals only** | Konsole, Yakuake, kitty, Alacritty, wezterm, xterm, gnome-terminal, tilix |
 | **All windows** | Every window on screen becomes retro |
-| **Custom** | You specify WM\_CLASS names (use `xprop WM_CLASS` to find them) |
+| **Custom** | You specify WM\_CLASS names (use `xprop WM\_CLASS` to find them) |
+
+Within a matched window the effect covers the content area only — the title bar
+and the drop shadow are left exactly as KWin drew them. KWin can tell the
+decoration from the client area but cannot see inside it, so chrome the terminal
+draws itself (menu bar, tab bar, toolbars, scrollbar) is still covered. Trim it
+with `contentInsetTop` / `contentInsetBottom` / `contentInsetLeft` /
+`contentInsetRight`, in pixels:
+
+```bash
+./phosphor-cli.sh set contentInsetBottom 46   # e.g. Konsole's toolbar
+```
 
 ### 4. Install a matching font
 

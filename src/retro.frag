@@ -70,9 +70,12 @@ uniform int   sampleMode;
 // in texture coordinates. Everything outside is left alone.
 uniform vec4  contentRect;
 
-// Map a coordinate in content space [0,1] onto the texture.
+// Map a coordinate in content space [0,1] onto the texture. Content space runs
+// top-down like the screen; the texture's Y axis runs bottom-up, so it flips here.
 vec2 toTex(vec2 local) {
-    return mix(contentRect.xy, contentRect.zw, clamp(local, 0.0, 1.0));
+    vec2 l = clamp(local, 0.0, 1.0);
+    l.y = 1.0 - l.y;
+    return mix(contentRect.xy, contentRect.zw, l);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -269,9 +272,10 @@ void main() {
     }
 
     // From here on everything works in content space, where [0,1] spans the
-    // terminal area rather than the whole window.
+    // terminal area rather than the whole window, and y increases downwards.
     vec2 local = (texcoord0 - contentRect.xy)
                / max(contentRect.zw - contentRect.xy, vec2(1e-6));
+    local.y = 1.0 - local.y;
 
     // 1. Barrel distortion (on original UV)
     vec2 uv = barrel(local);

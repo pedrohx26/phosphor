@@ -105,6 +105,15 @@ private:
     float  m_targetResX          = 320.0f; // original width
     float  m_targetResY          = 200.0f; // original height
     int    m_sampleMode          = 2;      // 0=nearest 1=bilinear 2=sharp-bilinear
+
+    // Trim, in pixels, taken off the terminal's content area before the effect is
+    // applied. KWin can tell the decoration from the client area but cannot see
+    // inside it, so a terminal that draws its own menu bar, tab bar or toolbars
+    // needs those shaved off by hand.
+    int    m_contentInsetTop     = 0;
+    int    m_contentInsetBottom  = 0;
+    int    m_contentInsetLeft    = 0;
+    int    m_contentInsetRight   = 0;
 };
 
 } // namespace KWin
