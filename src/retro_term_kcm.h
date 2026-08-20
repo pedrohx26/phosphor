@@ -201,7 +201,7 @@ private:
     QString     ensureColorScheme(const QString &id);
     // Largest integer zoom k that fits the preset's virtual screen on the
     // current display, or 0 when the preset has no clean sourced grid+cell.
-    static int  zoomFor(const PresetValues &p);
+    static int  zoomFor(const PresetValues &p, int minCols, bool authenticSize);
     bool        restoreKonsoleFont(QString *error);
     void        updateFontTabInfo();
 
@@ -261,6 +261,8 @@ private:
     QDoubleSpinBox *m_targetResY    = nullptr;
     QWidget       *m_targetResRow   = nullptr;  // zichtbaar als preset resolutie heeft
     QSpinBox      *m_integerZoomSpin = nullptr; // 0 = uit, k>0 = bron-uitgelijnde zoom
+    QSpinBox      *m_minColumns      = nullptr; // kolom-ondergrens waaruit k volgt
+    QCheckBox     *m_authenticSize   = nullptr; // exact historisch raster forceren
 
     static constexpr const char *CFG_GROUP = "Effect-retro-terminal";
 };

@@ -532,7 +532,7 @@ static const SchemeDef SCHEME_DEFS[] = {
 // pixels (HP 150 is the documented example) and the exact-reconstruction
 // guarantee doesn't hold. In that case, and for presets with no sourced grid
 // at all, this returns 0 and the preset falls back to the resample path.
-int RetroTermKCM::zoomFor(const PresetValues &p)
+int RetroTermKCM::zoomFor(const PresetValues &p, int minCols, bool authenticSize)
 {
     if (p.targetCols <= 0 || p.targetRows <= 0
         || p.targetResX <= 0.0 || p.targetResY <= 0.0)
@@ -541,15 +541,38 @@ int RetroTermKCM::zoomFor(const PresetValues &p)
     if (resX % p.targetCols != 0 || resY % p.targetRows != 0)
         return 0;
 
-    // Largest k whose virtual screen still fits in ~90% of the display, so the
-    // sized-to-grid Konsole window stays manageable. Never below 1: even on a
-    // tiny display, 1:1 is still exact.
     QSize scr(1920, 1080);
     if (const QScreen *s = QGuiApplication::primaryScreen())
         scr = s->availableGeometry().size();
-    const int k = std::min(scr.width() * 9 / 10 / resX,
-                           scr.height() * 9 / 10 / resY);
-    return std::clamp(k, 1, 8);
+
+    if (authenticSize) {
+        // Historical dimensions: fit the whole virtual screen on the display.
+        const int k = std::min(scr.width() * 9 / 10 / resX,
+                               scr.height() * 9 / 10 / resY);
+        return std::clamp(k, 1, 8);
+    }
+
+    // Usable dimensions (the default). Integer zoom inherently trades columns
+    // for pixel size: at cell width cw, a window of W pixels holds W/(cw*k)
+    // columns, so every step up in k quarters... thirds... the usable width.
+    // On a 1920px screen with an 8px cell that is ~240 columns at k=1, 120 at
+    // k=2, 80 at k=3, 60 at k=4. Picking k to fill the screen (what this used
+    // to do) therefore lands on a terminal far too narrow for modern shells:
+    // fish prompts, git status and eza listings assume 80+ columns and wrap
+    // into mush below that, which is exactly the breakage this now avoids.
+    //
+    // So: largest k that still leaves minCols columns. Pixel density becomes
+    // as chunky as it can be *without* making the terminal unusable, and the
+    // window keeps whatever size the user gave it — the shader derives the
+    // virtual resolution from the actual content size anyway, so the result
+    // stays pixel-exact, just on a bigger virtual screen than the original
+    // machine had.
+    const int cellW = resX / p.targetCols;
+    const int cellH = resY / p.targetRows;
+    const int kByW = (scr.width()  * 9 / 10) / (cellW * std::max(minCols, 20));
+    // Keep a classic 24-line terminal's worth of height as well.
+    const int kByH = (scr.height() * 9 / 10) / (cellH * 24);
+    return std::clamp(std::min(kByW, kByH), 1, 8);
 }
 
 QWidget *RetroTermKCM::scrollWrap(QWidget *page)
@@ -1255,6 +1278,54 @@ QGroupBox *RetroTermKCM::buildScreenSection()
     connect(m_integerZoomSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &RetroTermKCM::markChanged);
 
+    // Kolom-ondergrens. Zonder deze rem koos "Load preset" de grootst mogelijke
+    // k, en dat is precies waar een authentiek beeld botst met een bruikbare
+    // terminal: elke stap in k deelt het aantal kolommen. Bij k=4 en een cel van
+    // 8px houdt een venster van 1280px nog 40 kolommen over — te smal voor
+    // fish-prompts, git-status of eza, die dan halverwege woorden afbreken.
+    m_minColumns = new QSpinBox;
+    m_minColumns->setRange(20, 300);
+    m_minColumns->setValue(80);
+    m_minColumns->setSuffix(i18n(" columns"));
+    m_minColumns->setToolTip(i18n(
+        "The zoom factor chosen when loading a preset is the largest one that "
+        "still leaves at least this many columns. 80 is the classic terminal "
+        "width nearly every shell prompt and command-line tool is designed "
+        "for; lower values give chunkier pixels but start to wrap modern "
+        "output badly."));
+    fl->addRow(i18n("Keep at least:"), m_minColumns);
+    connect(m_minColumns, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &RetroTermKCM::markChanged);
+    // Beide knoppen sturen welke k straks gekozen wordt, dus het preset-label
+    // (op het Setup-tabblad hierboven) moet meteen meebewegen — anders staat
+    // daar een zoomfactor die niet meer klopt met wat "Load preset" doet.
+    auto refreshPresetInfo = [this] {
+        if (!m_presetCombo) return;
+        const int idx = m_presetCombo->currentIndex();
+        updatePresetInfo(idx > 0 ? m_presets.at(idx - 1) : PresetValues{});
+    };
+    connect(m_minColumns, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, refreshPresetInfo);
+
+    m_authenticSize = new QCheckBox(
+        i18n("Resize the terminal to the machine's exact grid"));
+    m_authenticSize->setToolTip(i18n(
+        "Writes the historical character grid (40×25 for a C64, 80×25 for a "
+        "DOS machine, ...) into the Konsole profile, so the window matches the "
+        "original screen exactly.\n\n"
+        "Authentic, but be warned: a 40-column terminal is too narrow for most "
+        "modern shell prompts and listings — they will wrap mid-word. Leave "
+        "this off to keep your own terminal size and get the era-correct "
+        "pixels without the era-correct cramping."));
+    fl->addRow(QString(), m_authenticSize);
+    connect(m_authenticSize, &QCheckBox::toggled,
+            this, &RetroTermKCM::markChanged);
+    connect(m_authenticSize, &QCheckBox::toggled, this, refreshPresetInfo);
+    // De kolom-ondergrens stuurt alleen de niet-authentieke keuze; in
+    // authentieke modus bepaalt het historische raster alles.
+    connect(m_authenticSize, &QCheckBox::toggled, m_minColumns, &QWidget::setDisabled);
+    m_minColumns->setDisabled(m_authenticSize->isChecked());
+
     // Hoofdslider
     m_pixelScaleRow = new ParamRow(
         i18n("Pixel scale:"), 0.0, 1.0, 0.01,
@@ -1591,6 +1662,17 @@ bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize,
     if (cols > 0 && rows > 0) {
         general.writeEntry(QStringLiteral("TerminalColumns"), cols);
         general.writeEntry(QStringLiteral("TerminalRows"), rows);
+    } else if (ours.hasKey(backupColsKey)) {
+        // Niet-authentiek: raster niet opleggen én een eerder opgelegd raster
+        // ongedaan maken. Zonder deze tak blijft een profiel dat ooit op 40×25
+        // gezet is daar hangen, en dan is "houd je eigen terminalgrootte" een
+        // loze belofte: de gebruiker zit nog steeds in 40 kolommen.
+        const int origCols = ours.readEntry(backupColsKey, 0);
+        const int origRows = ours.readEntry(backupRowsKey, 0);
+        if (origCols > 0 && origRows > 0) {
+            general.writeEntry(QStringLiteral("TerminalColumns"), origCols);
+            general.writeEntry(QStringLiteral("TerminalRows"), origRows);
+        }
     }
     // Bij pixel-exacte rendering moet het content-gebied exact
     // cols×celW×k bij rows×celH×k zijn — Konsole's eigen rand (standaard
@@ -1742,7 +1824,9 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     //    cannot reconstruct what the terminal never rendered. Kept because
     //    "roughly blocky" still beats nothing for GUI-era machines whose
     //    virtual screen can't be expressed as a character grid at all.
-    const int k = zoomFor(p);
+    const bool authentic = m_authenticSize && m_authenticSize->isChecked();
+    const int  minCols   = m_minColumns ? m_minColumns->value() : 80;
+    const int  k = zoomFor(p, minCols, authentic);
     if (m_integerZoomSpin) m_integerZoomSpin->setValue(k);
     if (p.targetResX > 0.0 && p.targetResY > 0.0) {
         if (m_targetResX) m_targetResX->setValue(p.targetResX);
@@ -1758,8 +1842,11 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     // Konsole profile when the user has asked for that.
     m_presetFont     = p.font;
     m_presetFontSize = p.fontSize;
-    m_presetCols     = p.targetCols;
-    m_presetRows     = p.targetRows;
+    // Alleen in authentieke modus krijgt Konsole het historische raster
+    // opgelegd; anders houdt het venster zijn eigen afmetingen en volgt het
+    // virtuele scherm daaruit (de shader deelt de contentgrootte door k).
+    m_presetCols     = authentic ? p.targetCols : 0;
+    m_presetRows     = authentic ? p.targetRows : 0;
     // Pixel-exact font size for the integer-zoom path: the historical cell
     // height (resY / rows — clean by zoomFor()'s divisibility check) times k.
     m_presetFontPx   = (k > 0) ? ((int)p.targetResY / p.targetRows) * k : 0;
@@ -1768,10 +1855,10 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     if (!p.font.isEmpty() && m_autoApplyFont && m_autoApplyFont->isChecked()
         && m_autoApplyFont->isEnabled()) {
         QString err;
-        if (applyFontToKonsole(p.font, p.fontSize, p.targetCols, p.targetRows,
+        if (applyFontToKonsole(p.font, p.fontSize, m_presetCols, m_presetRows,
                                m_presetFontPx, p.scheme, &err) && m_fontStatus) {
-            const QString gridPart = (p.targetCols > 0 && p.targetRows > 0)
-                ? i18n(" and resized it to %1×%2 characters", p.targetCols, p.targetRows)
+            const QString gridPart = (m_presetCols > 0 && m_presetRows > 0)
+                ? i18n(" and resized it to %1×%2 characters", m_presetCols, m_presetRows)
                 : QString();
             const QString sizePart = (m_presetFontPx > 0)
                 ? i18n("%1px (pixel-exact, zoom %2×)", m_presetFontPx, k)
@@ -1812,14 +1899,33 @@ void RetroTermKCM::updatePresetInfo(const PresetValues &p)
         ? i18n("Target resolution: %1×%2", (int)p.targetResX, (int)p.targetResY)
         : i18n("Target resolution: native (no pixel scaling)");
 
-    // Shown so it's visible *before* "Load preset" whether this preset can
-    // actually align Konsole's rendered grid with the simulated resolution —
-    // for the machines where no documented text grid exists (bitmap-GUI
-    // systems, or conflicting sources), it honestly can't, and the font
-    // still gets applied but at whatever size the profile already has.
-    const QString gridPart = (p.targetCols > 0 && p.targetRows > 0)
-        ? i18n("Konsole grid: %1×%2 characters", p.targetCols, p.targetRows)
-        : i18n("Konsole grid: unknown for this machine — size left as-is");
+    // Shown *before* "Load preset" so it's clear what will actually happen:
+    // which zoom gets picked, and whether the terminal will be resized to the
+    // historical grid or keep its own size. Presets whose machine has no
+    // documented text grid (bitmap-GUI systems, conflicting sources) can't do
+    // integer zoom at all and say so rather than implying otherwise.
+    const bool authentic = m_authenticSize && m_authenticSize->isChecked();
+    const int  minCols   = m_minColumns ? m_minColumns->value() : 80;
+    const int  k = zoomFor(p, minCols, authentic);
+    QString gridPart;
+    if (k <= 0) {
+        gridPart = i18n("Pixel grid: no documented text grid for this machine — "
+                        "falls back to approximate resampling");
+    } else if (authentic) {
+        gridPart = i18n("Pixel grid: zoom %1×, terminal resized to <b>%2×%3</b> "
+                        "characters (authentic, but narrow for modern prompts)",
+                        k, p.targetCols, p.targetRows);
+    } else {
+        // Estimate what the user's own window will hold at this zoom, so the
+        // trade-off is a number on screen instead of a surprise afterwards.
+        const int cellW = (int)p.targetResX / p.targetCols;
+        QSize scr(1920, 1080);
+        if (const QScreen *s = QGuiApplication::primaryScreen())
+            scr = s->availableGeometry().size();
+        const int cols = (scr.width() * 9 / 10) / (cellW * k);
+        gridPart = i18n("Pixel grid: zoom %1×, terminal keeps its own size "
+                        "(~%2 columns full-screen)", k, cols);
+    }
 
     m_presetInfo->setText(fontPart + QStringLiteral("<br>") + resPart
                            + QStringLiteral("<br>") + gridPart);
@@ -1884,6 +1990,8 @@ void RetroTermKCM::load()
     if (m_targetResX)       m_targetResX->setValue(cfg.readEntry("targetResX", 320.0));
     if (m_targetResY)       m_targetResY->setValue(cfg.readEntry("targetResY", 200.0));
     if (m_integerZoomSpin)  m_integerZoomSpin->setValue(cfg.readEntry("integerZoom", 0));
+    if (m_minColumns)       m_minColumns->setValue(cfg.readEntry("minColumns", 80));
+    if (m_authenticSize)    m_authenticSize->setChecked(cfg.readEntry("authenticSize", false));
 
     // Every setValue() above ran through markChanged(), so the live-preview timer
     // is now armed to write back the exact values just read and reload the effect
@@ -1936,6 +2044,10 @@ void RetroTermKCM::save()
     if (m_targetResX)       grp.writeEntry("targetResX",  m_targetResX->value());
     if (m_targetResY)       grp.writeEntry("targetResY",  m_targetResY->value());
     if (m_integerZoomSpin)  grp.writeEntry("integerZoom", m_integerZoomSpin->value());
+    // Alleen KCM-voorkeuren: de effect-kant leest ze niet, ze sturen alleen
+    // welke k "Load preset" kiest en of het raster opgelegd wordt.
+    if (m_minColumns)       grp.writeEntry("minColumns",    m_minColumns->value());
+    if (m_authenticSize)    grp.writeEntry("authenticSize", m_authenticSize->isChecked());
 
     // This KCM is reached by clicking the effect's own config icon in Desktop
     // Effects, which implies it's already enabled there — but it's just as
