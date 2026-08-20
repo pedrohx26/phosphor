@@ -14,6 +14,7 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGuiApplication>
+#include <QPainter>
 #include <QProcess>
 #include <QScreen>
 #include <QGroupBox>
@@ -422,6 +423,74 @@ QGroupBox *RetroTermKCM::makeGroup(const QString &title, QFormLayout *&fl)
     fl = new QFormLayout(gb);
     fl->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     return gb;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PresetPreview — font en palet meteen zichtbaar
+// ══════════════════════════════════════════════════════════════════════════════
+PresetPreview::PresetPreview(QWidget *parent) : QWidget(parent)
+{
+    setMinimumHeight(112);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+}
+
+QSize PresetPreview::sizeHint() const { return QSize(420, 112); }
+
+void PresetPreview::setPreset(const QString &family, int pixelSize, int pointSize,
+                              const QColor &bg, const QColor &fg,
+                              const QList<QColor> &ansi)
+{
+    m_family = family; m_pixelSize = pixelSize; m_pointSize = pointSize;
+    m_bg = bg; m_fg = fg; m_ansi = ansi;
+    update();
+}
+
+void PresetPreview::paintEvent(QPaintEvent *)
+{
+    QPainter pnt(this);
+    pnt.fillRect(rect(), m_bg);
+
+    QFont f = m_family.isEmpty() ? font() : QFont(m_family);
+    // Pixel fonts are drawn as exact blocks; antialiasing them here would
+    // misrepresent what the terminal will actually show once the profile is
+    // written, which is the whole point of this preview.
+    f.setStyleStrategy(QFont::NoAntialias);
+    if (!m_family.isEmpty()) {
+        // Cap the preview size: a preset's real size can be 32px or more at
+        // high integer zoom, which would show two words and nothing else.
+        if (m_pixelSize > 0) f.setPixelSize(qBound(12, m_pixelSize, 20));
+        else                 f.setPointSize(qBound(9, m_pointSize, 16));
+    }
+    pnt.setFont(f);
+
+    const QFontMetrics fm(f);
+    const int lh = fm.height();
+    const int x  = 8;
+    int y = 6 + fm.ascent();
+
+    auto col = [&](int i) {
+        return (i >= 0 && i < m_ansi.size()) ? m_ansi.at(i) : m_fg;
+    };
+    auto line = [&](std::initializer_list<std::pair<QColor, QString>> parts) {
+        int cx = x;
+        for (const auto &p : parts) {
+            pnt.setPen(p.first);
+            pnt.drawText(cx, y, p.second);
+            cx += fm.horizontalAdvance(p.second);
+        }
+        y += lh;
+    };
+
+    // Deliberately mundane content: a prompt, a listing with a few palette
+    // colours, and a plain sentence. It shows the typeface and the palette in
+    // the shapes a terminal actually produces, rather than a pangram.
+    line({{col(10), QStringLiteral("user@host")}, {m_fg, QStringLiteral(":~$ ")},
+          {m_fg, QStringLiteral("ls")}});
+    line({{col(12), QStringLiteral("Documents  ")}, {col(10), QStringLiteral("run.sh  ")},
+          {col(9),  QStringLiteral("core.log  ")}, {m_fg, QStringLiteral("notes.txt")}});
+    line({{m_fg, QStringLiteral("The quick brown fox 0123456789")}});
+    line({{col(10), QStringLiteral("user@host")}, {m_fg, QStringLiteral(":~$ ")},
+          {m_fg, QStringLiteral("_")}});
 }
 
 // ── Konsole colorschemes per preset ───────────────────────────────────────────
@@ -982,33 +1051,29 @@ QGroupBox *RetroTermKCM::buildPresetSection()
     for (const auto &pv : m_presets)
         m_presetCombo->addItem(pv.name);
 
-    m_applyPreset = new QPushButton(i18n("Load preset"));
-    m_applyPreset->setEnabled(false);
-
     pfl->addRow(i18n("Preset:"), m_presetCombo);
 
-    // Shows the preset's recommended font and target resolution the moment it's
-    // picked — before "Load preset" is even clicked — since neither is something
-    // this effect can set for you: the font lives in the terminal emulator's own
-    // profile, entirely outside what a KWin effect can reach.
+    // Live voorbeeld: font en palet meteen te zien. Zonder dit is een preset
+    // pas zichtbaar nadat er een nieuwe Konsole-sessie gestart is, en dat is
+    // precies de omweg die dit hele scherm probeert weg te nemen.
+    m_preview = new PresetPreview;
+    pfl->addRow(i18n("Preview:"), m_preview);
+
     m_presetInfo = new QLabel;
     m_presetInfo->setTextFormat(Qt::RichText);
     m_presetInfo->setWordWrap(true);
     pfl->addRow(QString(), m_presetInfo);
 
-    auto *btnRow = new QHBoxLayout;
-    btnRow->addWidget(m_applyPreset);
-    btnRow->addStretch();
-    pfl->addRow(QString(), btnRow);
-
+    // Kiezen is laden. Er was een aparte "Load preset"-knop, maar die vroeg om
+    // een tweede handeling voor iets wat de gebruiker met de keuze zelf al
+    // bedoelde — en maakte het bovendien makkelijk te denken dat er niets
+    // gebeurde. Het effect verandert nu direct mee via live preview; het
+    // Konsole-profiel wordt pas bij OK/Apply weggeschreven, zodat Cancel
+    // werkelijk niets achterlaat.
     connect(m_presetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int idx) {
-        m_applyPreset->setEnabled(idx > 0);
-        updatePresetInfo(idx > 0 ? m_presets.at(idx - 1) : PresetValues{});
-    });
-    connect(m_applyPreset, &QPushButton::clicked, this, [this] {
-        const int idx = m_presetCombo->currentIndex();
         if (idx > 0) applyPreset(m_presets.at(idx - 1));
+        else         updatePresetInfo(PresetValues{});
     });
 
     return pgb;
@@ -1512,8 +1577,41 @@ void RetroTermKCM::schedulePreview()
 void RetroTermKCM::pushLivePreview()
 {
     if (!m_livePreview || !m_livePreview->isChecked()) return;
+    // The flag keeps save() from touching the Konsole profile: live preview is
+    // for the CRT effect, which is reversible and window-local, not for
+    // rewriting the user's terminal settings on every slider tick.
+    m_inLivePreview = true;
     save();
+    m_inLivePreview = false;
     reconfigureKWinEffect();
+}
+
+void RetroTermKCM::commitKonsoleProfile()
+{
+    if (m_presetFont.isEmpty()) return;
+    if (!m_autoApplyFont || !m_autoApplyFont->isChecked()
+        || !m_autoApplyFont->isEnabled()) return;
+
+    QString err;
+    if (applyFontToKonsole(m_presetFont, m_presetFontSize, m_presetCols,
+                           m_presetRows, m_presetFontPx, m_presetScheme, &err)) {
+        if (!m_fontStatus) return;
+        const QString gridPart = (m_presetCols > 0 && m_presetRows > 0)
+            ? i18n(" and resized it to %1×%2 characters", m_presetCols, m_presetRows)
+            : QString();
+        const QString sizePart = (m_presetFontPx > 0)
+            ? i18n("%1px (pixel-exact)", m_presetFontPx)
+            : i18n("%1pt", m_presetFontSize);
+        m_fontStatus->setText(i18n(
+            "<span style=\"color:#27ae60;\">Wrote <b>%1</b> %2 to %3%4.</span> "
+            "New Konsole windows use it; already-open ones keep what they "
+            "started with.",
+            m_presetFont, sizePart, m_konsoleProfile->currentText(), gridPart));
+    } else if (m_fontStatus && !err.isEmpty()) {
+        m_fontStatus->setText(i18n(
+            "<span style=\"color:#c0392b;\">Could not write the profile: %1</span>",
+            err));
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1570,12 +1668,39 @@ void RetroTermKCM::refreshKonsoleProfiles()
     }
 }
 
+static const SchemeDef *findScheme(const QString &id)
+{
+    if (id.isEmpty()) return nullptr;
+    for (const auto &d : SCHEME_DEFS)
+        if (id == QLatin1String(d.id)) return &d;
+    return nullptr;
+}
+
+// Feeds the on-screen preview. Uses the same SCHEME_DEFS the profile writer
+// uses, so what the preview shows and what Konsole eventually gets cannot
+// drift apart — they are the same numbers.
+void RetroTermKCM::updatePreview(const PresetValues &p)
+{
+    if (!m_preview) return;
+    const SchemeDef *s = findScheme(p.scheme);
+    auto qc = [](SchemeColor c) { return QColor(c.r, c.g, c.b); };
+
+    QList<QColor> ansi;
+    if (s) for (const auto &c : s->ansi) ansi << qc(c);
+
+    const int k  = zoomFor(p, m_minColumns ? m_minColumns->value() : 80,
+                           m_authenticSize && m_authenticSize->isChecked());
+    const int px = (k > 0 && p.targetRows > 0)
+                 ? ((int)p.targetResY / p.targetRows) * k : 0;
+
+    m_preview->setPreset(p.font, px, p.fontSize,
+                         s ? qc(s->bg) : QColor(Qt::black),
+                         s ? qc(s->fg) : QColor(Qt::white), ansi);
+}
+
 QString RetroTermKCM::ensureColorScheme(const QString &id)
 {
-    if (id.isEmpty()) return QString();
-    const SchemeDef *def = nullptr;
-    for (const auto &d : SCHEME_DEFS)
-        if (id == QLatin1String(d.id)) { def = &d; break; }
+    const SchemeDef *def = findScheme(id);
     if (!def) return QString();
 
     const QString schemeName = QStringLiteral("Phosphor ") + QLatin1String(def->name);
@@ -1922,26 +2047,19 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     m_presetFontPx   = (k > 0) ? ((int)p.targetResY / p.targetRows) * k : 0;
     m_presetScheme   = p.scheme;
     updateFontTabInfo();
-    if (!p.font.isEmpty() && m_autoApplyFont && m_autoApplyFont->isChecked()
-        && m_autoApplyFont->isEnabled()) {
-        QString err;
-        if (applyFontToKonsole(p.font, p.fontSize, m_presetCols, m_presetRows,
-                               m_presetFontPx, p.scheme, &err) && m_fontStatus) {
-            const QString gridPart = (m_presetCols > 0 && m_presetRows > 0)
-                ? i18n(" and resized it to %1×%2 characters", m_presetCols, m_presetRows)
-                : QString();
-            const QString sizePart = (m_presetFontPx > 0)
-                ? i18n("%1px (pixel-exact, zoom %2×)", m_presetFontPx, k)
-                : i18n("%1pt", p.fontSize);
+    updatePreview(p);
+    // The Konsole profile is deliberately NOT written here. Selecting a preset
+    // should be free to explore: the preview and the CRT effect show it
+    // immediately, and only OK/Apply commits anything to the user's terminal
+    // profile — so Cancel leaves nothing behind and no font ever has to be put
+    // back by hand. commitKonsoleProfile(), called from save(), does the write.
+    if (!p.font.isEmpty() && m_autoApplyFont
+        && m_autoApplyFont->isChecked() && m_autoApplyFont->isEnabled()) {
+        m_profilePending = true;
+        if (m_fontStatus)
             m_fontStatus->setText(i18n(
-                "<span style=\"color:#27ae60;\">Wrote <b>%1</b> %2 to %3%4.</span> "
-                "Open a new Konsole tab or window to see it.",
-                p.font, sizePart, m_konsoleProfile->currentText(), gridPart));
-        } else if (m_fontStatus && !err.isEmpty()) {
-            m_fontStatus->setText(i18n(
-                "<span style=\"color:#c0392b;\">Could not write the profile: %1</span>",
-                err));
-        }
+                "<i>Press OK or Apply to write <b>%1</b> to the %2 profile.</i>",
+                p.font, m_konsoleProfile->currentText()));
     }
 
     updatePresetInfo(p);
@@ -2133,6 +2251,19 @@ void RetroTermKCM::save()
     plugins.writeEntry("retro-termEnabled", true);
 
     cfg->sync();
+
+    // Only a real OK/Apply reaches the user's terminal profile; live preview
+    // sets m_inLivePreview so exploring presets stays free of side effects.
+    // Crucially, live preview must then leave the module reporting unsaved
+    // changes while a profile write is still outstanding — clearing it made
+    // System Settings skip save() entirely on OK, so the profile never got
+    // written and the preset appeared to apply only halfway.
+    if (m_inLivePreview) {
+        setNeedsSave(m_profilePending);
+        return;
+    }
+    commitKonsoleProfile();
+    m_profilePending = false;
     setNeedsSave(false);
 }
 

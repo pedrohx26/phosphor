@@ -111,6 +111,34 @@ struct PresetValues {
     QString scheme;
 };
 
+// ── Live voorbeeld van font + palet ──────────────────────────────────────────
+// Konsole leest een profiel alleen bij sessiestart, dus een geladen preset is
+// in een openstaand venster onzichtbaar. Dit widget tekent zelf een paar regels
+// terminaltekst met het font en de kleuren van de preset, zodat de keuze
+// meteen te zien is zonder dat er een terminal herstart hoeft te worden.
+// Het CRT-effect zelf zit hier bewust niet in: dat is een KWin-shader op
+// vensters, en die namaken zou een tweede implementatie zijn die uit de pas
+// kan gaan lopen met de echte.
+class PresetPreview : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit PresetPreview(QWidget *parent = nullptr);
+    // family/pixelSize: leeg/0 = terugvallen op de dialoogfont.
+    void setPreset(const QString &family, int pixelSize, int pointSize,
+                   const QColor &bg, const QColor &fg,
+                   const QList<QColor> &ansi);
+    QSize sizeHint() const override;
+protected:
+    void paintEvent(QPaintEvent *) override;
+private:
+    QString       m_family;
+    int           m_pixelSize = 0;
+    int           m_pointSize = 14;
+    QColor        m_bg = Qt::black, m_fg = Qt::white;
+    QList<QColor> m_ansi;
+};
+
 // ── Slider + spinbox combo ────────────────────────────────────────────────────
 class ParamRow : public QWidget
 {
@@ -199,6 +227,11 @@ private:
     // step involved). Returns the scheme name to reference from a profile, or
     // empty when the id is unknown.
     QString     ensureColorScheme(const QString &id);
+    // Schrijft het Konsole-profiel voor de op dat moment geladen preset.
+    // Alleen aangeroepen vanuit save() buiten live preview om, zodat Cancel
+    // het profiel van de gebruiker ongemoeid laat.
+    void        commitKonsoleProfile();
+    void        updatePreview(const PresetValues &p);
     // Largest integer zoom k that fits the preset's virtual screen on the
     // current display, or 0 when the preset has no clean sourced grid+cell.
     static int  zoomFor(const PresetValues &p, int minCols, bool authenticSize);
@@ -220,15 +253,24 @@ private:
     QLabel       *m_terminalSummary  = nullptr;
 
     // ── Preset selector ───────────────────────────────────────────────────────
-    QComboBox   *m_presetCombo  = nullptr;
-    QPushButton *m_applyPreset  = nullptr;
-    QPushButton *m_applyKWin    = nullptr;
-    QLabel      *m_presetInfo   = nullptr;   // toont aanbevolen font + resolutie
+    QComboBox     *m_presetCombo = nullptr;
+    QPushButton   *m_applyKWin   = nullptr;
+    QLabel        *m_presetInfo  = nullptr;   // toont aanbevolen font + resolutie
+    PresetPreview *m_preview     = nullptr;   // font/kleuren, direct zichtbaar
 
     // ── Tabs + live preview ───────────────────────────────────────────────────
     QTabWidget  *m_tabs           = nullptr;
     QCheckBox   *m_livePreview    = nullptr;
     QTimer      *m_previewTimer   = nullptr;
+    // save() draait ook tijdens live preview. Het Konsole-profiel mag dan juist
+    // níét geschreven worden — dat hoort pas bij OK/Apply, anders is Cancel
+    // betekenisloos geworden zodra je één schuifje hebt aangeraakt.
+    bool         m_inLivePreview  = false;
+    // Er staat een preset klaar waarvan het Konsole-profiel nog geschreven moet
+    // worden. Live preview mag dit niet wegstrepen: doet het dat wel, dan meldt
+    // de module "niets te bewaren" en slaat System Settings save() bij OK
+    // helemaal over — waardoor het profiel nooit geschreven werd.
+    bool         m_profilePending = false;
 
     // ── Fonts-tab ─────────────────────────────────────────────────────────────
     QComboBox   *m_konsoleProfile = nullptr;
