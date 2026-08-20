@@ -59,6 +59,16 @@ MONO_SCHEMES = {"mono", "paper"}
 # do not apply to them.
 GENERIC = {"Default (amber)", "Minimaal (laag GPU)"}
 
+# Fonts measured (QFontMetricsF over printable ASCII at pixelSize 32) to have
+# more than one advance width. A terminal cannot lay these out on a grid, so
+# they are unusable here however authentic they may be — Shaston really is the
+# Apple IIgs system font, and it is still the wrong tool for this job.
+NON_MONO = {
+    "Silkscreen",            # 5 advances, 12..28px
+    "Shaston 320",           # 6 advances, 16..36px
+    "Project Jason Tall",    # 58 advances, 7..30px
+}
+
 
 def split_fields(inner: str):
     """Split one p({...}) body on top-level commas (quotes/brackets aware)."""
@@ -205,6 +215,14 @@ def check(p, err, warn, note):
         err(n, f"ghostingIntensity={p['ghostingIntensity']} outside 0..0.5")
     if not p["font"]:
         err(n, "no font")
+    elif p["font"] in NON_MONO:
+        # A terminal needs one advance width for every glyph. Silkscreen and
+        # Shaston 320 shipped here for a while and cannot produce an even grid
+        # at all — measured at 5 and 6 distinct advances across printable
+        # ASCII. Project Jason Tall (58 advances) was proposed as a fix for the
+        # Atari ST and would have been a regression, which is why this check
+        # exists rather than a list of approved fonts.
+        err(n, f"font '{p['font']}' is not monospaced — no even character grid")
     if not (8 <= p["fontSize"] <= 32):
         warn(n, f"fontSize={p['fontSize']} is unusual")
     if not p["scheme"] and not generic:
