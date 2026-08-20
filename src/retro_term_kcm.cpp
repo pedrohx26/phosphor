@@ -14,6 +14,7 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGuiApplication>
+#include <QProcess>
 #include <QScreen>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -1030,6 +1031,16 @@ QGroupBox *RetroTermKCM::buildFontSection()
             "font actually renders across the same grid the shader is "
             "simulating, not an arbitrary modern terminal size cut through by "
             "a generic resample.</p>"
+            "<p><b>Loading a preset changes two things at different times.</b> "
+            "The CRT effect — scanlines, phosphor, curvature, pixel scaling — "
+            "applies to open windows immediately. The font, colour palette and "
+            "window size are written into the Konsole profile, and Konsole only "
+            "reads a profile when a session starts, so <b>an already-open "
+            "terminal keeps the font and colours it started with</b>. That is a "
+            "Konsole restriction, not a setting: its remote interface for "
+            "changing a live session's profile is disabled as security "
+            "sensitive. Use \"Open a new Konsole window\" below to see the "
+            "whole preset.</p>"
             "<p>Konsole stores its font (and window size) in a profile file, "
             "which this page can write for you. For other terminals, set the "
             "font yourself:</p>"
@@ -1109,9 +1120,28 @@ QGroupBox *RetroTermKCM::buildFontSection()
             }
         });
 
+        // Konsole reads a profile when a session starts and never re-reads it:
+        // its D-Bus setProfile() is refused as "security sensitive" by default,
+        // so there is no way to push font, palette or window size into a window
+        // that is already open. That makes loading a preset feel broken — the
+        // CRT effect changes instantly through reconfigureEffect() while the
+        // terminal-side half appears not to happen at all. Rather than only
+        // explaining that in text, offer the one action that resolves it.
+        auto *newTermBtn = new QPushButton(i18n("Open a new Konsole window"));
+        newTermBtn->setToolTip(i18n(
+            "Font, colours and window size only apply to newly started Konsole "
+            "sessions — an already-open window keeps the profile it started "
+            "with. This opens a fresh one so you can see the preset."));
+        connect(newTermBtn, &QPushButton::clicked, this, [this] {
+            if (!QProcess::startDetached(QStringLiteral("konsole"), {}) && m_fontStatus)
+                m_fontStatus->setText(i18n(
+                    "<span style=\"color:#c0392b;\">Could not start konsole.</span>"));
+        });
+
         auto *row = new QHBoxLayout;
         row->addWidget(m_applyFontBtn);
         row->addWidget(m_restoreFontBtn);
+        row->addWidget(newTermBtn);
         row->addStretch();
         fl->addRow(QString(), row);
 
