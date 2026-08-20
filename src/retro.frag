@@ -64,6 +64,27 @@ uniform float degaussProgress;
 uniform float pixelScale;
 uniform vec2  targetRes;
 uniform int   sampleMode;
+// integerZoom: 0 = off (use the pixelScale/targetRes resample above).
+// k > 0 = source-aligned integer scaling: the terminal is known to render a
+// pixel font whose every virtual pixel spans exactly k×k physical pixels
+// (font written at pixelSize = cell × k, window sized to the character grid,
+// margins zeroed — the KCM sets all of that up when a preset is loaded).
+// The virtual screen is then simply content/k, and nearest-neighbour sampling
+// on that grid reconstructs it EXACTLY — unlike the pixelScale path, which
+// point-samples an arbitrary high-resolution rasterization and mangles glyph
+// strokes whenever the grid doesn't phase-align with the drawn characters.
+// This also makes the virtual resolution follow window resizes (45 columns at
+// 8px cells and k=4 is a 360-wide virtual screen, still pixel-perfect),
+// instead of clinging to a fixed targetRes that no longer matches reality.
+uniform int   integerZoom;
+
+// Effective simulated resolution shared by the sampler, scanlines, and every
+// other grid-aligned artifact. One definition, so they can never disagree
+// about where a virtual pixel is.
+vec2 effectiveRes() {
+    if (integerZoom > 0) return resolution / float(integerZoom);
+    return mix(resolution, targetRes, pixelScale);
+}
 
 // The offscreen texture covers the whole window: decoration, shadow and all.
 // contentRect marks the terminal's own content area inside it, as (x0,y0,x1,y1)
@@ -115,6 +136,15 @@ float lum(vec3 c)   { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 // Quantize uv to the targetRes grid with a transition zone controlled by
 // pixelScale. At scale=0 -> original uv, at scale=1 -> fully quantized.
 vec2 scaleUV(vec2 uv) {
+    // Integer-zoom path: sample the exact centre of each k×k block. Since the
+    // source is (by construction, see the integerZoom uniform's comment) a
+    // k×-magnified virtual screen, this is lossless reconstruction — always
+    // nearest-neighbour, sampleMode is a resample concept and doesn't apply.
+    if (integerZoom > 0) {
+        vec2 effRes = effectiveRes();
+        return (floor(uv * effRes) + 0.5) / effRes;
+    }
+
     if (pixelScale < 0.001) return uv;
 
     // Effective resolution: interpolate between window resolution and targetRes
@@ -187,7 +217,7 @@ vec3 scanlines(vec2 uv) {
     if (rasterizationMode == 0) return vec3(1.0);
 
     // Use effective resolution for scanline positioning
-    float effY = mix(resolution.y, targetRes.y, pixelScale);
+    float effY = effectiveRes().y;
     float ph   = fract(uv.y * effY);
 
     if (rasterizationMode == 1) {
@@ -196,7 +226,7 @@ vec3 scanlines(vec2 uv) {
         return vec3(mix(1.0, l, scanlinesIntensity));
     }
     if (rasterizationMode == 2) {
-        float effX = mix(resolution.x, targetRes.x, pixelScale);
+        float effX = effectiveRes().x;
         float px = smoothstep(0.0, 0.4, fract(uv.x * effX))
                  * smoothstep(1.0, 0.6, fract(uv.x * effX));
         float py = smoothstep(0.0, 0.4, ph) * smoothstep(1.0, 0.6, ph);
@@ -208,7 +238,7 @@ vec3 scanlines(vec2 uv) {
         // is deliberately no vertical subdivision here. Each screen-space triad
         // lights one stripe per channel, which is what gives a Trinitron its
         // characteristic bright, vertically-continuous look.
-        float effX  = mix(resolution.x, targetRes.x, pixelScale);
+        float effX  = effectiveRes().x;
         float triad = fract(uv.x * effX);          // position within one RGB triad
         vec3  m = vec3(
             smoothstep(0.00, 0.16, triad) * smoothstep(0.50, 0.34, triad),
@@ -329,7 +359,7 @@ void main() {
     // 4. Character smearing (horizontal blur)
     if (characterSmearing > 0.001) {
         // Smearing offset expressed in effective pixels
-        float effX = mix(resolution.x, targetRes.x, pixelScale);
+        float effX = effectiveRes().x;
         vec2  px   = vec2(1.0 / effX, 0.0);
         col = mix(col,
                   (sampleScaled(uv - px).rgb + col
@@ -346,7 +376,7 @@ void main() {
 
     // 7. Phosphor persistence (afterglow)
     if (phosphorPersistence > 0.001) {
-        float effY  = mix(resolution.y, targetRes.y, pixelScale);
+        float effY  = effectiveRes().y;
         vec3  prev  = sampleScaled(uv + vec2(0.0, 1.0 / effY)).rgb * 0.6;
         col = mix(col, col + prev * phosphorPersistence, 0.35);
     }
@@ -399,7 +429,7 @@ void main() {
 
     // 16. Glowing line
     if (glowingLine > 0.001) {
-        float effY = mix(resolution.y, targetRes.y, pixelScale);
+        float effY = effectiveRes().y;
         col += vec3(exp(-abs(fract(uv.y * effY / 25.0) - 0.5) * 80.0)
                     * glowingLine * 0.06);
     }

@@ -13,6 +13,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -25,6 +27,8 @@
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include <QDebug>
+
+#include <algorithm>
 
 K_PLUGIN_FACTORY_WITH_JSON(RetroTermKCMFactory,
                             "kcm_metadata.json",
@@ -394,6 +398,32 @@ QGroupBox *RetroTermKCM::makeGroup(const QString &title, QFormLayout *&fl)
     fl = new QFormLayout(gb);
     fl->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     return gb;
+}
+
+// The integer-zoom render path (see retro.frag's integerZoom uniform) is only
+// honest when the character cell divides the sourced resolution cleanly — a
+// fractional cell means the machine's real grid doesn't map to whole virtual
+// pixels (HP 150 is the documented example) and the exact-reconstruction
+// guarantee doesn't hold. In that case, and for presets with no sourced grid
+// at all, this returns 0 and the preset falls back to the resample path.
+int RetroTermKCM::zoomFor(const PresetValues &p)
+{
+    if (p.targetCols <= 0 || p.targetRows <= 0
+        || p.targetResX <= 0.0 || p.targetResY <= 0.0)
+        return 0;
+    const int resX = (int)p.targetResX, resY = (int)p.targetResY;
+    if (resX % p.targetCols != 0 || resY % p.targetRows != 0)
+        return 0;
+
+    // Largest k whose virtual screen still fits in ~90% of the display, so the
+    // sized-to-grid Konsole window stays manageable. Never below 1: even on a
+    // tiny display, 1:1 is still exact.
+    QSize scr(1920, 1080);
+    if (const QScreen *s = QGuiApplication::primaryScreen())
+        scr = s->availableGeometry().size();
+    const int k = std::min(scr.width() * 9 / 10 / resX,
+                           scr.height() * 9 / 10 / resY);
+    return std::clamp(k, 1, 8);
 }
 
 QWidget *RetroTermKCM::scrollWrap(QWidget *page)
@@ -872,7 +902,8 @@ QGroupBox *RetroTermKCM::buildFontSection()
             }
             QString err;
             if (applyFontToKonsole(m_presetFont, m_presetFontSize,
-                                    m_presetCols, m_presetRows, &err)) {
+                                    m_presetCols, m_presetRows,
+                                    m_presetFontPx, &err)) {
                 const QString gridPart = (m_presetCols > 0 && m_presetRows > 0)
                     ? i18n(" and resized it to %1×%2 characters", m_presetCols, m_presetRows)
                     : QString();
@@ -1075,6 +1106,29 @@ QGroupBox *RetroTermKCM::buildScreenSection()
         "1.0 = exact original pixels (true-size block pixels)\n"
         "Values in between blend both views."));
 
+    // Bron-uitgelijnde integer zoom — de eerlijke route naar een virtueel
+    // scherm. Het resample-pad hieronder (pixel scale) kan tekst die op hoge
+    // resolutie gerasterd is nooit meer authentiek 320×200 maken: het prikt
+    // samples in klaargetekende glyphs en vermorzelt dunne beeldlijnen. Bij
+    // integer zoom k rendert Konsole zélf het pixelfont op cel×k fysieke
+    // pixels (dit tabblad schrijft die fontgrootte plus rand 0 het profiel
+    // in), waarna de shader het virtuele scherm exact terugleest als
+    // content/k. "Load preset" vult k automatisch in voor presets met een
+    // gedocumenteerd tekstraster.
+    m_integerZoomSpin = new QSpinBox;
+    m_integerZoomSpin->setRange(0, 8);
+    m_integerZoomSpin->setSpecialValueText(i18n("off — use pixel scale below"));
+    m_integerZoomSpin->setToolTip(i18n(
+        "Source-aligned integer scaling. At k > 0 the preset font is written "
+        "into the Konsole profile at exactly (cell × k) physical pixels and "
+        "the shader treats every k×k block as one virtual pixel — a "
+        "pixel-perfect virtual screen, unlike the approximate resample below. "
+        "Loading a preset with a documented text grid fills this in "
+        "automatically. Requires the preset font to be active in Konsole."));
+    fl->addRow(i18n("Integer zoom (k):"), m_integerZoomSpin);
+    connect(m_integerZoomSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &RetroTermKCM::markChanged);
+
     // Hoofdslider
     m_pixelScaleRow = new ParamRow(
         i18n("Pixel scale:"), 0.0, 1.0, 0.01,
@@ -1083,14 +1137,21 @@ QGroupBox *RetroTermKCM::buildScreenSection()
     fl->addRow(i18n("Pixel scale:"), m_pixelScaleRow);
     connect(m_pixelScaleRow, &ParamRow::valueChanged,
             this, &RetroTermKCM::markChanged);
-    // At pixelScale 0 the width/height fields (and the quick-pick buttons
-    // beside them) are inert — the shader ignores targetRes entirely. Left
-    // enabled, they read as "set" when they do nothing; graying the whole
-    // row out the moment scaling is off makes that state visible instead of
-    // something you have to already know from the tooltip.
-    connect(m_pixelScaleRow, &ParamRow::valueChanged, this, [this](double v) {
-        if (m_targetResRow) m_targetResRow->setEnabled(v > 0.001);
-    });
+    // Enable-logica in één plek: bij integer zoom is het hele resample-blok
+    // (pixel scale, sampling, doelresolutie) inert — de shader negeert het —
+    // en bij pixelScale 0 zijn de resolutievelden dat ook. Uitgrijzen laat
+    // die staat zien in plaats van hem in een tooltip te verstoppen.
+    auto updateScalingEnables = [this] {
+        const bool zoomed = m_integerZoomSpin && m_integerZoomSpin->value() > 0;
+        if (m_pixelScaleRow)   m_pixelScaleRow->setEnabled(!zoomed);
+        if (m_sampleModeCombo) m_sampleModeCombo->setEnabled(!zoomed);
+        if (m_targetResRow)
+            m_targetResRow->setEnabled(!zoomed
+                && m_pixelScaleRow && m_pixelScaleRow->value() > 0.001);
+    };
+    connect(m_pixelScaleRow, &ParamRow::valueChanged, this, updateScalingEnables);
+    connect(m_integerZoomSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, updateScalingEnables);
 
     // Sampling-modus combobox
     m_sampleModeCombo = new QComboBox;
@@ -1149,11 +1210,11 @@ QGroupBox *RetroTermKCM::buildScreenSection()
     addRes(i18n("720×350"),  720, 350);
 
     fl->addRow(i18n("Original res.:"), m_targetResRow);
-    // setValue() only emits valueChanged on an actual change, so the row's
-    // enabled state needs one explicit sync here — load() calling
-    // setValue(0.0) on a slider that already defaults to 0.0 fires no
-    // signal at all, and the row would otherwise start enabled regardless.
-    m_targetResRow->setEnabled(m_pixelScaleRow->value() > 0.001);
+    // setValue() only emits valueChanged on an actual change, so the enable
+    // states need one explicit sync here — load() calling setValue(0.0) on a
+    // slider that already defaults to 0.0 fires no signal at all, and the
+    // rows would otherwise start enabled regardless.
+    updateScalingEnables();
 
     connect(m_targetResX, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &RetroTermKCM::markChanged);
@@ -1259,7 +1320,8 @@ void RetroTermKCM::refreshKonsoleProfiles()
 }
 
 bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize,
-                                       int cols, int rows, QString *error)
+                                       int cols, int rows, int fontPixelSize,
+                                       QString *error)
 {
     if (!m_konsoleProfile || !m_konsoleProfile->isEnabled()) {
         if (error) *error = i18n("no Konsole profile selected");
@@ -1287,6 +1349,9 @@ bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize,
         appearance.readEntry(QStringLiteral("AntiAliasFonts"), true);
     const int previousCols = general.readEntry(QStringLiteral("TerminalColumns"), 0);
     const int previousRows = general.readEntry(QStringLiteral("TerminalRows"), 0);
+    // -1 = "sleutel was afwezig": bij restore dan verwijderen in plaats van
+    // Konsole's default terugschrijven alsof de gebruiker die ooit koos.
+    const int previousMargin = general.readEntry(QStringLiteral("TerminalMargin"), -1);
     KConfigGroup ours = KSharedConfig::openConfig(QStringLiteral("kwinrc"))
                             ->group(QLatin1String(CFG_GROUP));
     const QString backupKey =
@@ -1297,20 +1362,30 @@ bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize,
         QStringLiteral("OriginalKonsoleCols-") + QFileInfo(path).fileName();
     const QString backupRowsKey =
         QStringLiteral("OriginalKonsoleRows-") + QFileInfo(path).fileName();
+    const QString backupMarginKey =
+        QStringLiteral("OriginalKonsoleMargin-") + QFileInfo(path).fileName();
     if (!previousFont.isEmpty() && !ours.hasKey(backupKey)) {
         ours.writeEntry(backupKey, previousFont);
         ours.writeEntry(backupAAKey, previousAA);
         ours.writeEntry(backupColsKey, previousCols);
         ours.writeEntry(backupRowsKey, previousRows);
+        ours.writeEntry(backupMarginKey, previousMargin);
         ours.sync();
     }
 
     // Konsole slaat het font op als een QFont-beschrijvingsstring: familie,
-    // puntgrootte, en daarna acht velden (pixelSize, styleHint, weight, italic,
-    // underline, strikeout, fixedPitch, rawMode) die Konsole zelf ook altijd
-    // op deze waarden schrijft. -1 bij pixelSize betekent "gebruik puntgrootte".
-    appearance.writeEntry(QStringLiteral("Font"),
-        QStringLiteral("%1,%2,-1,5,50,0,0,0,0,0").arg(family).arg(pointSize));
+    // puntgrootte, pixelgrootte, en daarna zeven velden (styleHint, weight,
+    // style, underline, strikeout, fixedPitch, rawMode) die Konsole zelf ook
+    // altijd op deze waarden schrijft. -1 betekent "dit veld niet gebruiken".
+    //
+    // fontPixelSize > 0 kiest de pixel-variant: puntgrootte -1, pixelgrootte
+    // exact cel×k. Een puntgrootte levert een cel van "wat 14pt op deze
+    // schermdichtheid toevallig is" — vrijwel nooit een geheel veelvoud van
+    // het virtuele pixelraster, en precies daardoor vermorzelde het
+    // resample-pad glyphs. Pixelgrootte maakt de cel exact.
+    appearance.writeEntry(QStringLiteral("Font"), fontPixelSize > 0
+        ? QStringLiteral("%1,-1,%2,5,50,0,0,0,0,0").arg(family).arg(fontPixelSize)
+        : QStringLiteral("%1,%2,-1,5,50,0,0,0,0,0").arg(family).arg(pointSize));
 
     // These preset fonts are bitmap/pixel fonts (int10h, kreativekorp, C64 Pro
     // Mono, Topaz, ...) drawn as exact blocky pixels on purpose. Antialiasing
@@ -1336,6 +1411,12 @@ bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize,
         general.writeEntry(QStringLiteral("TerminalColumns"), cols);
         general.writeEntry(QStringLiteral("TerminalRows"), rows);
     }
+    // Bij pixel-exacte rendering moet het content-gebied exact
+    // cols×celW×k bij rows×celH×k zijn — Konsole's eigen rand (standaard
+    // 1px, sleutel bevestigd in libkonsoleprivate) zou daar stille
+    // fase-verschuiving bovenop leggen en de exacte reconstructie breken.
+    if (fontPixelSize > 0)
+        general.writeEntry(QStringLiteral("TerminalMargin"), 0);
     cfg->sync();
 
     if (cfg->accessMode() != KConfig::ReadWrite) {
@@ -1367,6 +1448,8 @@ bool RetroTermKCM::restoreKonsoleFont(QString *error)
         QStringLiteral("OriginalKonsoleCols-") + QFileInfo(path).fileName();
     const QString backupRowsKey =
         QStringLiteral("OriginalKonsoleRows-") + QFileInfo(path).fileName();
+    const QString backupMarginKey =
+        QStringLiteral("OriginalKonsoleMargin-") + QFileInfo(path).fileName();
     const QString original = ours.readEntry(backupKey, QString());
     if (original.isEmpty()) {
         if (error) *error = i18n("this profile has no Phosphor-saved original font");
@@ -1378,19 +1461,25 @@ bool RetroTermKCM::restoreKonsoleFont(QString *error)
     // existing OriginalKonsoleFont- backup from before those changes won't
     // have matching keys, and "restore to what Konsole normally does" is the
     // correct fallback, not "restore to off" or "restore to 0×0".
-    const bool originalAA   = ours.readEntry(backupAAKey, true);
-    const int  originalCols = ours.readEntry(backupColsKey, 0);
-    const int  originalRows = ours.readEntry(backupRowsKey, 0);
+    const bool originalAA     = ours.readEntry(backupAAKey, true);
+    const int  originalCols   = ours.readEntry(backupColsKey, 0);
+    const int  originalRows   = ours.readEntry(backupRowsKey, 0);
+    // -2 = "geen backup" (pre-dates margin support), -1 = "sleutel was afwezig"
+    const int  originalMargin = ours.readEntry(backupMarginKey, -2);
 
     KSharedConfig::Ptr cfg = KSharedConfig::openConfig(path, KConfig::SimpleConfig);
     KConfigGroup appearance = cfg->group(QStringLiteral("Appearance"));
+    KConfigGroup general    = cfg->group(QStringLiteral("General"));
     appearance.writeEntry(QStringLiteral("Font"), original);
     appearance.writeEntry(QStringLiteral("AntiAliasFonts"), originalAA);
     if (originalCols > 0 && originalRows > 0) {
-        KConfigGroup general = cfg->group(QStringLiteral("General"));
         general.writeEntry(QStringLiteral("TerminalColumns"), originalCols);
         general.writeEntry(QStringLiteral("TerminalRows"), originalRows);
     }
+    if (originalMargin >= 0)
+        general.writeEntry(QStringLiteral("TerminalMargin"), originalMargin);
+    else if (originalMargin == -1)
+        general.deleteEntry(QStringLiteral("TerminalMargin"));
     cfg->sync();
 
     // Backup weggooien: het profiel staat weer op de eigen keuze van de gebruiker,
@@ -1399,6 +1488,7 @@ bool RetroTermKCM::restoreKonsoleFont(QString *error)
     ours.deleteEntry(backupAAKey);
     ours.deleteEntry(backupColsKey);
     ours.deleteEntry(backupRowsKey);
+    ours.deleteEntry(backupMarginKey);
     ours.sync();
     return true;
 }
@@ -1443,19 +1533,26 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     if (auto *s2 = m_spins.value("warmupDuration"))  s2->setValue(p.warmupDuration);
     if (auto *s2 = m_spins.value("degaussDuration")) s2->setValue(p.degaussDuration);
 
-    // Pixel scaling: fill in original resolution and enable scaling if preset has one.
+    // Pixel scaling. Preference order:
     //
-    // This used to set 0.7 rather than 1.0, which is why "the resolution doesn't
-    // do anything" — the shader interpolates the sampling grid between the
-    // window's own pixel size and targetRes (effRes = mix(resolution, targetRes,
-    // pixelScale)), so on a 1200px-wide terminal 0.7 lands at ~580 cells: barely
-    // two screen pixels per cell, an effect you have to hunt for. 1.0 is the
-    // value that actually means what this preset field promises — the machine's
-    // real resolution, one block per original pixel.
+    // 1. Integer zoom (k > 0) — the honest virtual screen. Only possible when
+    //    the preset has a sourced grid whose cell divides the resolution
+    //    cleanly; the font then gets written at exactly cell×k pixels and the
+    //    shader reconstructs the virtual screen losslessly. The resample
+    //    slider goes to 0: with integer zoom active the shader ignores it,
+    //    and a nonzero-but-ignored slider reads as a lie.
+    //
+    // 2. Resample fallback (pixelScale 1.0) — for presets without a clean
+    //    grid. Approximate by nature: it point-samples finished glyphs and
+    //    cannot reconstruct what the terminal never rendered. Kept because
+    //    "roughly blocky" still beats nothing for GUI-era machines whose
+    //    virtual screen can't be expressed as a character grid at all.
+    const int k = zoomFor(p);
+    if (m_integerZoomSpin) m_integerZoomSpin->setValue(k);
     if (p.targetResX > 0.0 && p.targetResY > 0.0) {
         if (m_targetResX) m_targetResX->setValue(p.targetResX);
         if (m_targetResY) m_targetResY->setValue(p.targetResY);
-        if (m_pixelScaleRow) m_pixelScaleRow->setValue(1.0);
+        if (m_pixelScaleRow) m_pixelScaleRow->setValue(k > 0 ? 0.0 : 1.0);
         if (m_sampleModeCombo) m_sampleModeCombo->setCurrentIndex(2);
     } else {
         if (m_pixelScaleRow) m_pixelScaleRow->setValue(0.0);
@@ -1468,18 +1565,25 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     m_presetFontSize = p.fontSize;
     m_presetCols     = p.targetCols;
     m_presetRows     = p.targetRows;
+    // Pixel-exact font size for the integer-zoom path: the historical cell
+    // height (resY / rows — clean by zoomFor()'s divisibility check) times k.
+    m_presetFontPx   = (k > 0) ? ((int)p.targetResY / p.targetRows) * k : 0;
     updateFontTabInfo();
     if (!p.font.isEmpty() && m_autoApplyFont && m_autoApplyFont->isChecked()
         && m_autoApplyFont->isEnabled()) {
         QString err;
-        if (applyFontToKonsole(p.font, p.fontSize, p.targetCols, p.targetRows, &err) && m_fontStatus) {
+        if (applyFontToKonsole(p.font, p.fontSize, p.targetCols, p.targetRows,
+                               m_presetFontPx, &err) && m_fontStatus) {
             const QString gridPart = (p.targetCols > 0 && p.targetRows > 0)
                 ? i18n(" and resized it to %1×%2 characters", p.targetCols, p.targetRows)
                 : QString();
+            const QString sizePart = (m_presetFontPx > 0)
+                ? i18n("%1px (pixel-exact, zoom %2×)", m_presetFontPx, k)
+                : i18n("%1pt", p.fontSize);
             m_fontStatus->setText(i18n(
-                "<span style=\"color:#27ae60;\">Wrote <b>%1</b> %2pt to %3%4.</span> "
+                "<span style=\"color:#27ae60;\">Wrote <b>%1</b> %2 to %3%4.</span> "
                 "Open a new Konsole tab or window to see it.",
-                p.font, p.fontSize, m_konsoleProfile->currentText(), gridPart));
+                p.font, sizePart, m_konsoleProfile->currentText(), gridPart));
         } else if (m_fontStatus && !err.isEmpty()) {
             m_fontStatus->setText(i18n(
                 "<span style=\"color:#c0392b;\">Could not write the profile: %1</span>",
@@ -1579,10 +1683,11 @@ void RetroTermKCM::load()
     if (auto *s = m_spins.value("degaussDuration")) s->setValue(cfg.readEntry("degaussDuration", 2.5));
 
     // Pixel scaling
-    if (m_pixelScaleRow)   m_pixelScaleRow->setValue(cfg.readEntry("pixelScale",  0.0));
-    if (m_sampleModeCombo) m_sampleModeCombo->setCurrentIndex(cfg.readEntry("sampleMode", 2));
-    if (m_targetResX)      m_targetResX->setValue(cfg.readEntry("targetResX", 320.0));
-    if (m_targetResY)      m_targetResY->setValue(cfg.readEntry("targetResY", 200.0));
+    if (m_pixelScaleRow)    m_pixelScaleRow->setValue(cfg.readEntry("pixelScale",  0.0));
+    if (m_sampleModeCombo)  m_sampleModeCombo->setCurrentIndex(cfg.readEntry("sampleMode", 2));
+    if (m_targetResX)       m_targetResX->setValue(cfg.readEntry("targetResX", 320.0));
+    if (m_targetResY)       m_targetResY->setValue(cfg.readEntry("targetResY", 200.0));
+    if (m_integerZoomSpin)  m_integerZoomSpin->setValue(cfg.readEntry("integerZoom", 0));
 
     // Every setValue() above ran through markChanged(), so the live-preview timer
     // is now armed to write back the exact values just read and reload the effect
@@ -1630,10 +1735,11 @@ void RetroTermKCM::save()
     if (auto *s = m_spins.value("degaussDuration")) grp.writeEntry("degaussDuration",s->value());
 
     // Pixel scaling
-    if (m_pixelScaleRow)   grp.writeEntry("pixelScale",  m_pixelScaleRow->value());
-    if (m_sampleModeCombo) grp.writeEntry("sampleMode",  m_sampleModeCombo->currentIndex());
-    if (m_targetResX)      grp.writeEntry("targetResX",  m_targetResX->value());
-    if (m_targetResY)      grp.writeEntry("targetResY",  m_targetResY->value());
+    if (m_pixelScaleRow)    grp.writeEntry("pixelScale",  m_pixelScaleRow->value());
+    if (m_sampleModeCombo)  grp.writeEntry("sampleMode",  m_sampleModeCombo->currentIndex());
+    if (m_targetResX)       grp.writeEntry("targetResX",  m_targetResX->value());
+    if (m_targetResY)       grp.writeEntry("targetResY",  m_targetResY->value());
+    if (m_integerZoomSpin)  grp.writeEntry("integerZoom", m_integerZoomSpin->value());
 
     // This KCM is reached by clicking the effect's own config icon in Desktop
     // Effects, which implies it's already enabled there — but it's just as

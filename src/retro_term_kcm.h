@@ -21,6 +21,7 @@
 #include <QScrollArea>
 #include <QSet>
 #include <QSlider>
+#include <QSpinBox>
 #include <QStandardPaths>
 #include <QString>
 #include <QTabWidget>
@@ -178,8 +179,18 @@ private:
     // historical text grid, instead of an unrelated modern terminal size the
     // shader's pixel-scaling then has to quantize through arbitrarily.
     void        refreshKonsoleProfiles();
+    // fontPixelSize > 0 switches the profile's font to an exact pixel size
+    // (QFont pixelSize) instead of a point size — the difference between "a
+    // cell of whatever physical size 14pt happens to be" and "a cell of
+    // exactly native×k physical pixels", which the integer-zoom render path
+    // requires. Also zeroes the profile's TerminalMargin then, so the content
+    // area is exactly cols×cellW×k by rows×cellH×k with nothing added.
     bool        applyFontToKonsole(const QString &family, int pointSize,
-                                    int cols, int rows, QString *error);
+                                    int cols, int rows, int fontPixelSize,
+                                    QString *error);
+    // Largest integer zoom k that fits the preset's virtual screen on the
+    // current display, or 0 when the preset has no clean sourced grid+cell.
+    static int  zoomFor(const PresetValues &p);
     bool        restoreKonsoleFont(QString *error);
     void        updateFontTabInfo();
 
@@ -221,6 +232,7 @@ private:
     int          m_presetFontSize = 14;
     int          m_presetCols     = 0;
     int          m_presetRows     = 0;
+    int          m_presetFontPx   = 0;   // pixel-exact font size (cell × k), 0 = use points
 
     // ── Parameter widgets ─────────────────────────────────────────────────────
     QMap<QString, ParamRow *>       m_params;
@@ -236,6 +248,7 @@ private:
     QDoubleSpinBox *m_targetResX    = nullptr;
     QDoubleSpinBox *m_targetResY    = nullptr;
     QWidget       *m_targetResRow   = nullptr;  // zichtbaar als preset resolutie heeft
+    QSpinBox      *m_integerZoomSpin = nullptr; // 0 = uit, k>0 = bron-uitgelijnde zoom
 
     static constexpr const char *CFG_GROUP = "Effect-retro-terminal";
 };
