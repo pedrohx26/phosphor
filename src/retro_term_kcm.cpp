@@ -1105,8 +1105,8 @@ QGroupBox *RetroTermKCM::buildFontSection()
         auto *expl = new QLabel(i18n(
             "The font and colours belong to the terminal, not to KWin, so they "
             "are written into a Konsole profile.<br>"
-            "<b>Konsole reads a profile only when a session starts</b> — an "
-            "already-open window keeps what it started with."));
+            "<b>A session reads that profile when it starts</b> — open a tab to "
+            "see the preset; terminals already running keep what they had."));
         expl->setWordWrap(true);
         expl->setTextFormat(Qt::RichText);
         fl->addRow(expl);
@@ -1185,23 +1185,35 @@ QGroupBox *RetroTermKCM::buildFontSection()
         // CRT effect changes instantly through reconfigureEffect() while the
         // terminal-side half appears not to happen at all. Rather than only
         // explaining that in text, offer the one action that resolves it.
-        auto *newTermBtn = new QPushButton(i18n("Open a new Konsole window"));
+        auto *newTermBtn = new QPushButton(i18n("Open a terminal with this preset"));
         newTermBtn->setToolTip(i18n(
-            "Loading a preset changes two things at different times. The CRT "
-            "effect — scanlines, phosphor, curvature, pixel scaling — applies "
-            "to open windows immediately. The font, colour palette and window "
-            "size go into the Konsole profile, which Konsole reads only when a "
-            "session starts, so an already-open window keeps the font and "
-            "colours it started with. That is a Konsole restriction, not a "
-            "setting: its remote interface for changing a live session's "
-            "profile is refused as security sensitive.\n\n"
-            "This opens a fresh window so you can see the whole preset.\n\n"
+            "A preset applies in two parts. The CRT effect — scanlines, "
+            "phosphor, curvature, pixel scaling — reaches open windows at "
+            "once. The font, palette and window size go into the Konsole "
+            "profile, and a session reads that profile only when it starts, so "
+            "terminals that are already open keep what they started with.\n\n"
+            "There is no way around that for a running session: Konsole keeps "
+            "profiles in memory, its D-Bus setProfile() re-applies the cached "
+            "copy rather than re-reading the file, and profiles added after "
+            "startup are not picked up at all. (Enabling Konsole's "
+            "security-sensitive D-Bus API does not change this, and would let "
+            "any local program run commands in your terminals.)\n\n"
+            "A *new* session does read the updated profile, so this simply "
+            "opens a tab — in the existing window when there is one.\n\n"
             "Other terminals: set the font yourself — kitty's font_family, "
             "Alacritty's font.normal.family, WezTerm's wezterm.font()."));
         connect(newTermBtn, &QPushButton::clicked, this, [this] {
-            if (!QProcess::startDetached(QStringLiteral("konsole"), {}) && m_fontStatus)
+            // --new-tab lands in the window the user already has open, which is
+            // far less disruptive than spawning a second window; Konsole is
+            // single-instance, so this reuses the running process. It still
+            // opens a window when nothing is running yet.
+            if (!QProcess::startDetached(QStringLiteral("konsole"),
+                                         {QStringLiteral("--new-tab")})
+                && !QProcess::startDetached(QStringLiteral("konsole"), {})
+                && m_fontStatus) {
                 m_fontStatus->setText(i18n(
                     "<span style=\"color:#c0392b;\">Could not start konsole.</span>"));
+            }
         });
 
         auto *row = new QHBoxLayout;
