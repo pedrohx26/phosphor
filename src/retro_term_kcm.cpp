@@ -1260,19 +1260,25 @@ bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize, QStr
     KSharedConfig::Ptr cfg = KSharedConfig::openConfig(path, KConfig::SimpleConfig);
     KConfigGroup appearance = cfg->group(QStringLiteral("Appearance"));
 
-    // Stash whatever font the profile had before Phosphor ever touched it, so
-    // "Restore" can put the user's own choice back. Written once per profile:
-    // overwriting it on every preset load would, after two presets, only be able
-    // to restore the *previous preset's* font — which is not what a user who
-    // spent time picking their terminal font is asking to get back.
-    const QString previous =
+    // Stash whatever font (and antialiasing setting, see below) the profile
+    // had before Phosphor ever touched it, so "Restore" can put the user's own
+    // choice back. Written once per profile: overwriting it on every preset
+    // load would, after two presets, only be able to restore the *previous
+    // preset's* font — which is not what a user who spent time picking their
+    // terminal font is asking to get back.
+    const QString previousFont =
         appearance.readEntry(QStringLiteral("Font"), QString());
+    const bool previousAA =
+        appearance.readEntry(QStringLiteral("AntiAliasFonts"), true);
     KConfigGroup ours = KSharedConfig::openConfig(QStringLiteral("kwinrc"))
                             ->group(QLatin1String(CFG_GROUP));
     const QString backupKey =
         QStringLiteral("OriginalKonsoleFont-") + QFileInfo(path).fileName();
-    if (!previous.isEmpty() && !ours.hasKey(backupKey)) {
-        ours.writeEntry(backupKey, previous);
+    const QString backupAAKey =
+        QStringLiteral("OriginalKonsoleAA-") + QFileInfo(path).fileName();
+    if (!previousFont.isEmpty() && !ours.hasKey(backupKey)) {
+        ours.writeEntry(backupKey, previousFont);
+        ours.writeEntry(backupAAKey, previousAA);
         ours.sync();
     }
 
@@ -1282,6 +1288,14 @@ bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize, QStr
     // op deze waarden schrijft. -1 bij pixelSize betekent "gebruik puntgrootte".
     appearance.writeEntry(QStringLiteral("Font"),
         QStringLiteral("%1,%2,-1,5,50,0,0,0,0,0").arg(family).arg(pointSize));
+
+    // These preset fonts are bitmap/pixel fonts (int10h, kreativekorp, C64 Pro
+    // Mono, Topaz, ...) drawn as exact blocky pixels on purpose. Antialiasing
+    // is the right default for a normal typeface, but on a pixel font it
+    // blurs precisely the crisp edges the font was designed to have — the
+    // opposite of what a CRT preset is going for. Off whenever Phosphor sets
+    // the font; restoreKonsoleFont() below puts it back exactly as found.
+    appearance.writeEntry(QStringLiteral("AntiAliasFonts"), false);
     cfg->sync();
 
     if (cfg->accessMode() != KConfig::ReadWrite) {
@@ -1307,20 +1321,30 @@ bool RetroTermKCM::restoreKonsoleFont(QString *error)
                             ->group(QLatin1String(CFG_GROUP));
     const QString backupKey =
         QStringLiteral("OriginalKonsoleFont-") + QFileInfo(path).fileName();
+    const QString backupAAKey =
+        QStringLiteral("OriginalKonsoleAA-") + QFileInfo(path).fileName();
     const QString original = ours.readEntry(backupKey, QString());
     if (original.isEmpty()) {
         if (error) *error = i18n("this profile has no Phosphor-saved original font");
         return false;
     }
+    // Default true (Konsole's own default) if this profile predates the
+    // AntiAliasFonts backup added alongside applyFontToKonsole()'s AA=false —
+    // an existing OriginalKonsoleFont- backup from before that change won't
+    // have a matching AA key, and "restore to what Konsole normally does" is
+    // the correct fallback, not "restore to off".
+    const bool originalAA = ours.readEntry(backupAAKey, true);
 
     KSharedConfig::Ptr cfg = KSharedConfig::openConfig(path, KConfig::SimpleConfig);
-    cfg->group(QStringLiteral("Appearance"))
-        .writeEntry(QStringLiteral("Font"), original);
+    KConfigGroup appearance = cfg->group(QStringLiteral("Appearance"));
+    appearance.writeEntry(QStringLiteral("Font"), original);
+    appearance.writeEntry(QStringLiteral("AntiAliasFonts"), originalAA);
     cfg->sync();
 
     // Backup weggooien: het profiel staat weer op de eigen keuze van de gebruiker,
     // dus de volgende preset-toepassing mag daar opnieuw een verse backup van maken.
     ours.deleteEntry(backupKey);
+    ours.deleteEntry(backupAAKey);
     ours.sync();
     return true;
 }
