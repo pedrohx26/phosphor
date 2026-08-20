@@ -93,35 +93,35 @@ void RetroTermKCM::buildPresets()
 {
     auto p = [&](PresetValues pv) { m_presets.append(pv); };
 
-    p({"Default (amber)","—",1,0.05,7000,0.10,0.25,0.35,0.04,1,0.35,0.50,0.55,0.20,0.50,0.80,0.08,0.10,0,0.05,0.08,0.00,0.20,0.20,0.10,0.08,0.20,true,8.0,true,2.5,"VT323",16,0.0,0.0});
-    p({"IBM 2260 (1964)","1964 — Vroege IBM-mainframeterminal, 80×12",2,0.55,8500,0.60,0.45,0.65,0.12,0,0.35,0.50,0.80,0.45,0.42,0.90,0.18,0.25,1,0.20,0.22,0.00,0.00,0.00,0.15,0.30,0.50,true,15.0,true,4.0,"Glass TTY VT220",16,0.0,0.0});
-    p({"DEC GT40 (1972)","1972 — Vectorterminal PDP-11, P39",3,0.40,7800,0.80,0.20,0.55,0.08,0,0.35,0.50,0.85,0.60,0.38,0.85,0.10,0.15,0,0.08,0.15,0.00,0.05,0.10,0.06,0.15,0.35,true,12.0,true,3.5,"VT323",18,1024.0,768.0});
-    p({"DEC VT100 (1978)","1978 — Dé referentieterminal",0,0.12,8000,0.18,0.22,0.38,0.05,1,0.40,0.55,0.52,0.22,0.52,0.82,0.06,0.08,0,0.05,0.07,0.00,0.05,0.08,0.05,0.10,0.22,true,9.0,true,2.5,"VT323",18,800.0,240.0});
-    p({"IBM 3270 (1971)","1971 — IBM-mainframe blokmodus",0,0.18,8200,0.25,0.28,0.42,0.06,1,0.35,0.60,0.48,0.18,0.50,0.88,0.05,0.06,0,0.04,0.05,0.00,0.04,0.06,0.04,0.08,0.35,true,10.0,true,2.8,"Px437 IBM 3270pc",16,720.0,350.0});
-    p({"Wyse WY-50 (1983)","1983 — UNIX-werkterminal, 14\" groen",0,0.08,8400,0.14,0.18,0.32,0.04,1,0.38,0.65,0.55,0.20,0.55,0.85,0.04,0.06,0,0.03,0.05,0.00,0.04,0.08,0.04,0.08,0.20,true,8.0,true,2.5,"Px437 Wyse700b",16,800.0,312.0});
-    p({"Militair Radar (1958)","1958 — SAGE AN/FSQ-7, 19\" P14 nalichtend",3,0.50,7000,0.90,0.15,0.70,0.10,0,0.35,0.50,0.90,0.70,0.35,0.95,0.15,0.20,0,0.10,0.18,0.00,0.04,0.08,0.06,0.20,0.55,true,20.0,true,5.0,"Share Tech Mono",16,0.0,0.0});
-    p({"Apple II (1977)","1977 — NTSC-TV, composite",2,0.30,6500,0.22,0.38,0.50,0.08,1,0.55,0.35,0.65,0.28,0.48,0.78,0.14,0.18,1,0.12,0.14,0.00,0.45,0.35,0.18,0.35,0.28,true,10.0,true,3.0,"Print Char 21",16,280.0,192.0});
-    p({"Commodore 64 (1982)","1982 — VIC-II, PAL-TV",2,0.22,6200,0.18,0.35,0.45,0.07,1,0.50,0.38,0.60,0.25,0.50,0.80,0.12,0.14,1,0.10,0.12,0.00,0.55,0.40,0.14,0.28,0.25,true,9.0,true,2.8,"C64 Pro Mono",14,320.0,200.0});
-    p({"ZX Spectrum (1982)","1982 — PAL-TV, attribuutcellen",2,0.25,6300,0.16,0.38,0.48,0.08,1,0.52,0.33,0.62,0.24,0.52,0.78,0.13,0.16,1,0.11,0.13,0.00,0.60,0.45,0.16,0.30,0.20,true,9.0,true,2.8,"VT323",14,256.0,192.0});
-    p({"BBC Micro (1981)","1981 — Britse schoolcomputer",2,0.20,6600,0.16,0.30,0.44,0.07,1,0.50,0.38,0.60,0.22,0.50,0.80,0.10,0.12,1,0.09,0.11,0.00,0.55,0.40,0.14,0.25,0.22,true,9.0,true,2.8,"Bedstead",16,320.0,256.0});
-    p({"Atari 400/800 (1979)","1979 — ANTIC/CTIA, NTSC-TV",2,0.26,6400,0.19,0.36,0.47,0.07,1,0.52,0.35,0.62,0.26,0.50,0.79,0.12,0.15,1,0.10,0.13,0.00,0.50,0.38,0.15,0.30,0.24,true,9.0,true,2.8,"Atari Classic",16,320.0,192.0});
-    p({"IBM PC MDA (1981)","1981 — IBM 5151, P39",3,0.15,7500,0.30,0.20,0.40,0.06,1,0.42,0.60,0.58,0.28,0.50,0.88,0.05,0.07,0,0.04,0.06,0.00,0.04,0.06,0.05,0.10,0.30,true,8.0,true,2.5,"PxPlus IBM MDA",16,720.0,350.0});
-    p({"IBM PC CGA (1981)","1981 — CGA op composite/TV",2,0.20,7000,0.15,0.25,0.38,0.06,1,0.45,0.50,0.55,0.22,0.52,0.83,0.08,0.10,0,0.06,0.08,0.00,0.65,0.45,0.10,0.15,0.22,true,8.0,true,2.5,"PxPlus IBM CGA",16,320.0,200.0});
-    p({"IBM PC EGA (1984)","1984 — IBM 5154, 16 kleuren",2,0.14,7200,0.12,0.20,0.32,0.05,1,0.38,0.58,0.50,0.18,0.54,0.84,0.06,0.08,0,0.04,0.06,0.00,0.60,0.38,0.08,0.12,0.18,true,8.0,true,2.5,"PxPlus IBM EGA 8x14",14,640.0,350.0});
-    p({"Tandy 1000 (1984)","1984 — Verbeterde CGA",2,0.22,6800,0.15,0.28,0.42,0.07,1,0.48,0.42,0.58,0.22,0.50,0.80,0.10,0.12,1,0.08,0.10,0.00,0.70,0.48,0.12,0.20,0.24,true,9.0,true,2.8,"PxPlus Tandy1K-II 200L",16,320.0,200.0});
-    p({"IBM PS/2 VGA (1987)","1987 — De DOS-standaard",2,0.10,7400,0.10,0.15,0.28,0.04,1,0.32,0.62,0.45,0.15,0.55,0.85,0.05,0.06,0,0.03,0.05,0.00,0.65,0.35,0.07,0.10,0.15,true,7.0,true,2.2,"PxPlus IBM VGA 9x16",16,720.0,400.0});
-    p({"Amiga 500 (1987)","1987 — PAL-TV of 1084S",2,0.15,6800,0.14,0.25,0.38,0.06,1,0.48,0.44,0.55,0.20,0.52,0.81,0.08,0.10,0,0.05,0.08,0.00,0.65,0.42,0.10,0.18,0.18,true,8.0,true,2.5,"Topaz a500a1000a2000",14,320.0,256.0});
-    p({"Amiga WorkBench 2 (1990)","1990 — 1084S RGB-monitor",2,0.10,7000,0.10,0.20,0.30,0.05,1,0.40,0.52,0.48,0.16,0.56,0.83,0.06,0.08,0,0.04,0.06,0.00,0.68,0.38,0.08,0.14,0.14,true,7.0,true,2.2,"Topaz a500a1000a2000",14,640.0,256.0});
-    p({"Apple Macintosh 128K (1984)","1984 — 9-inch b/w CRT",2,0.35,9000,0.08,0.15,0.55,0.12,2,0.20,0.70,0.35,0.10,0.60,0.92,0.03,0.04,0,0.02,0.04,0.00,0.00,0.00,0.04,0.05,0.40,true,6.0,true,2.0,"Silkscreen",12,512.0,342.0});
+    p({"Default (amber)","—",1,0.05,7000,0.10,0.25,0.35,0.04,1,0.35,0.50,0.55,0.20,0.50,0.80,0.08,0.10,0,0.05,0.08,0.00,0.20,0.20,0.10,0.08,0.20,true,8.0,true,2.5,"VT323",16,0.0,0.0,0,0});
+    p({"IBM 2260 (1964)","1964 — Vroege IBM-mainframeterminal, 80×12",2,0.55,8500,0.60,0.45,0.65,0.12,0,0.35,0.50,0.80,0.45,0.42,0.90,0.18,0.25,1,0.20,0.22,0.00,0.00,0.00,0.15,0.30,0.50,true,15.0,true,4.0,"Glass TTY VT220",16,0.0,0.0,80,12});
+    p({"DEC GT40 (1972)","1972 — Vectorterminal PDP-11, P39",3,0.40,7800,0.80,0.20,0.55,0.08,0,0.35,0.50,0.85,0.60,0.38,0.85,0.10,0.15,0,0.08,0.15,0.00,0.05,0.10,0.06,0.15,0.35,true,12.0,true,3.5,"VT323",18,1024.0,768.0,0,0});
+    p({"DEC VT100 (1978)","1978 — Dé referentieterminal",0,0.12,8000,0.18,0.22,0.38,0.05,1,0.40,0.55,0.52,0.22,0.52,0.82,0.06,0.08,0,0.05,0.07,0.00,0.05,0.08,0.05,0.10,0.22,true,9.0,true,2.5,"VT323",18,800.0,240.0,80,24});
+    p({"IBM 3270 (1971)","1971 — IBM-mainframe blokmodus",0,0.18,8200,0.25,0.28,0.42,0.06,1,0.35,0.60,0.48,0.18,0.50,0.88,0.05,0.06,0,0.04,0.05,0.00,0.04,0.06,0.04,0.08,0.35,true,10.0,true,2.8,"Px437 IBM 3270pc",16,0.0,0.0,80,24});
+    p({"Wyse WY-50 (1983)","1983 — UNIX-werkterminal, 14\" groen",0,0.08,8400,0.14,0.18,0.32,0.04,1,0.38,0.65,0.55,0.20,0.55,0.85,0.04,0.06,0,0.03,0.05,0.00,0.04,0.08,0.04,0.08,0.20,true,8.0,true,2.5,"Px437 Wyse700b",16,800.0,312.0,80,24});
+    p({"Militair Radar (1958)","1958 — SAGE AN/FSQ-7, 19\" P14 nalichtend",3,0.50,7000,0.90,0.15,0.70,0.10,0,0.35,0.50,0.90,0.70,0.35,0.95,0.15,0.20,0,0.10,0.18,0.00,0.04,0.08,0.06,0.20,0.55,true,20.0,true,5.0,"Share Tech Mono",16,0.0,0.0,0,0});
+    p({"Apple II (1977)","1977 — NTSC-TV, composite",2,0.30,6500,0.22,0.38,0.50,0.08,1,0.55,0.35,0.65,0.28,0.48,0.78,0.14,0.18,1,0.12,0.14,0.00,0.45,0.35,0.18,0.35,0.28,true,10.0,true,3.0,"Print Char 21",16,280.0,192.0,40,24});
+    p({"Commodore 64 (1982)","1982 — VIC-II, PAL-TV",2,0.22,6200,0.18,0.35,0.45,0.07,1,0.50,0.38,0.60,0.25,0.50,0.80,0.12,0.14,1,0.10,0.12,0.00,0.55,0.40,0.14,0.28,0.25,true,9.0,true,2.8,"C64 Pro Mono",14,320.0,200.0,40,25});
+    p({"ZX Spectrum (1982)","1982 — PAL-TV, attribuutcellen",2,0.25,6300,0.16,0.38,0.48,0.08,1,0.52,0.33,0.62,0.24,0.52,0.78,0.13,0.16,1,0.11,0.13,0.00,0.60,0.45,0.16,0.30,0.20,true,9.0,true,2.8,"VT323",14,256.0,192.0,32,24});
+    p({"BBC Micro (1981)","1981 — Britse schoolcomputer",2,0.20,6600,0.16,0.30,0.44,0.07,1,0.50,0.38,0.60,0.22,0.50,0.80,0.10,0.12,1,0.09,0.11,0.00,0.55,0.40,0.14,0.25,0.22,true,9.0,true,2.8,"Bedstead",16,320.0,256.0,40,32});
+    p({"Atari 400/800 (1979)","1979 — ANTIC/CTIA, NTSC-TV",2,0.26,6400,0.19,0.36,0.47,0.07,1,0.52,0.35,0.62,0.26,0.50,0.79,0.12,0.15,1,0.10,0.13,0.00,0.50,0.38,0.15,0.30,0.24,true,9.0,true,2.8,"Atari Classic",16,320.0,192.0,40,24});
+    p({"IBM PC MDA (1981)","1981 — IBM 5151, P39",3,0.15,7500,0.30,0.20,0.40,0.06,1,0.42,0.60,0.58,0.28,0.50,0.88,0.05,0.07,0,0.04,0.06,0.00,0.04,0.06,0.05,0.10,0.30,true,8.0,true,2.5,"PxPlus IBM MDA",16,720.0,350.0,80,25});
+    p({"IBM PC CGA (1981)","1981 — CGA op composite/TV",2,0.20,7000,0.15,0.25,0.38,0.06,1,0.45,0.50,0.55,0.22,0.52,0.83,0.08,0.10,0,0.06,0.08,0.00,0.65,0.45,0.10,0.15,0.22,true,8.0,true,2.5,"PxPlus IBM CGA",16,320.0,200.0,40,25});
+    p({"IBM PC EGA (1984)","1984 — IBM 5154, 16 kleuren",2,0.14,7200,0.12,0.20,0.32,0.05,1,0.38,0.58,0.50,0.18,0.54,0.84,0.06,0.08,0,0.04,0.06,0.00,0.60,0.38,0.08,0.12,0.18,true,8.0,true,2.5,"PxPlus IBM EGA 8x14",14,640.0,350.0,80,25});
+    p({"Tandy 1000 (1984)","1984 — Verbeterde CGA",2,0.22,6800,0.15,0.28,0.42,0.07,1,0.48,0.42,0.58,0.22,0.50,0.80,0.10,0.12,1,0.08,0.10,0.00,0.70,0.48,0.12,0.20,0.24,true,9.0,true,2.8,"PxPlus Tandy1K-II 200L",16,320.0,200.0,40,25});
+    p({"IBM PS/2 VGA (1987)","1987 — De DOS-standaard",2,0.10,7400,0.10,0.15,0.28,0.04,1,0.32,0.62,0.45,0.15,0.55,0.85,0.05,0.06,0,0.03,0.05,0.00,0.65,0.35,0.07,0.10,0.15,true,7.0,true,2.2,"PxPlus IBM VGA 9x16",16,720.0,400.0,80,25});
+    p({"Amiga 500 (1987)","1987 — PAL-TV of 1084S",2,0.15,6800,0.14,0.25,0.38,0.06,1,0.48,0.44,0.55,0.20,0.52,0.81,0.08,0.10,0,0.05,0.08,0.00,0.65,0.42,0.10,0.18,0.18,true,8.0,true,2.5,"Topaz a500a1000a2000",14,320.0,256.0,0,0});
+    p({"Amiga WorkBench 2 (1990)","1990 — 1084S RGB-monitor",2,0.10,7000,0.10,0.20,0.30,0.05,1,0.40,0.52,0.48,0.16,0.56,0.83,0.06,0.08,0,0.04,0.06,0.00,0.68,0.38,0.08,0.14,0.14,true,7.0,true,2.2,"Topaz a500a1000a2000",14,640.0,256.0,0,0});
+    p({"Apple Macintosh 128K (1984)","1984 — 9-inch b/w CRT",2,0.35,9000,0.08,0.15,0.55,0.12,2,0.20,0.70,0.35,0.10,0.60,0.92,0.03,0.04,0,0.02,0.04,0.00,0.00,0.00,0.04,0.05,0.40,true,6.0,true,2.0,"Silkscreen",12,512.0,342.0,0,0});
     // Font: DejaVu Sans Mono — "Lucida Console" is a Microsoft font with no
     // free-redistributable source, so install-fonts.sh never had anything to
     // fetch for it; DejaVu Sans Mono ships in every distro's base fonts package
     // (already present on both test machines) and reads the same UNIX-console way.
-    p({"NeXT Station (1990)","1990 — 1120×832 grijs",2,0.08,8000,0.06,0.08,0.22,0.05,0,0.35,0.50,0.32,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.00,0.00,0.03,0.04,0.12,true,5.0,true,1.8,"DejaVu Sans Mono",13,1120.0,832.0});
-    p({"SVGA Multisync (1992)","1992 — 800×600, shadow mask",2,0.06,7600,0.06,0.10,0.20,0.04,1,0.22,0.72,0.35,0.10,0.60,0.87,0.03,0.04,0,0.02,0.04,0.00,0.70,0.30,0.05,0.06,0.10,true,6.0,true,2.0,"Terminus",14,800.0,600.0});
-    p({"Sony Trinitron (1997)","1997 — Aperture-grille beeldbuis",2,0.05,7800,0.05,0.04,0.18,0.04,3,0.18,0.78,0.30,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.80,0.28,0.04,0.04,0.08,true,5.0,true,1.8,"Terminus",14,1024.0,768.0});
-    p({"Teletext / Ceefax (1974)","1974 — PAL-TV, 8 kleuren",2,0.30,6200,0.20,0.40,0.52,0.09,1,0.62,0.28,0.70,0.30,0.46,0.76,0.20,0.24,2,0.18,0.20,0.12,0.80,0.55,0.22,0.40,0.28,true,12.0,true,3.5,"Bedstead",16,480.0,250.0});
-    p({"Minimaal (laag GPU)","— Subtiel, min. belasting",1,0.05,7000,0.10,0.10,0.15,0.04,1,0.20,0.50,0.20,0.08,0.55,0.85,0.00,0.00,0,0.00,0.00,0.00,0.20,0.20,0.00,0.00,0.10,false,8.0,false,2.5,"Terminus",14,0.0,0.0});
+    p({"NeXT Station (1990)","1990 — 1120×832 grijs",2,0.08,8000,0.06,0.08,0.22,0.05,0,0.35,0.50,0.32,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.00,0.00,0.03,0.04,0.12,true,5.0,true,1.8,"DejaVu Sans Mono",13,1120.0,832.0,0,0});
+    p({"SVGA Multisync (1992)","1992 — 800×600, shadow mask",2,0.06,7600,0.06,0.10,0.20,0.04,1,0.22,0.72,0.35,0.10,0.60,0.87,0.03,0.04,0,0.02,0.04,0.00,0.70,0.30,0.05,0.06,0.10,true,6.0,true,2.0,"Terminus",14,800.0,600.0,0,0});
+    p({"Sony Trinitron (1997)","1997 — Aperture-grille beeldbuis",2,0.05,7800,0.05,0.04,0.18,0.04,3,0.18,0.78,0.30,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.80,0.28,0.04,0.04,0.08,true,5.0,true,1.8,"Terminus",14,1024.0,768.0,0,0});
+    p({"Teletext / Ceefax (1974)","1974 — PAL-TV, 8 kleuren",2,0.30,6200,0.20,0.40,0.52,0.09,1,0.62,0.28,0.70,0.30,0.46,0.76,0.20,0.24,2,0.18,0.20,0.12,0.80,0.55,0.22,0.40,0.28,true,12.0,true,3.5,"Bedstead",16,480.0,240.0,40,24});
+    p({"Minimaal (laag GPU)","— Subtiel, min. belasting",1,0.05,7000,0.10,0.10,0.15,0.04,1,0.20,0.50,0.20,0.08,0.55,0.85,0.00,0.00,0,0.00,0.00,0.00,0.20,0.20,0.00,0.00,0.10,false,8.0,false,2.5,"Terminus",14,0.0,0.0,0,0});
 
     // ── Nieuwe presets: echte hardware, geverifieerde fonts ──────────────────
     //
@@ -147,7 +147,7 @@ void RetroTermKCM::buildPresets()
     p({"Commodore PET 2001 (1977)","1977 — Eerste Commodore, ingebouwde 9\" wit-fosfor CRT",
        2,0.35,8500,0.12, 0.40,0.55,0.10, 1,0.52,0.58,
        0.65,0.18,0.55,0.90, 0.06,0.08,0,0.04,0.06,0.00,
-       0.00,0.00,0.05,0.12,0.38, true,11.0,true,3.0, "Pet Me 2Y",16,320.0,200.0});
+       0.00,0.00,0.05,0.12,0.38, true,11.0,true,3.0, "Pet Me 2Y",16,320.0,200.0,40,25});
 
     // TRS-80 Model I (1977)
     // Hardware: discrete TTL-videoschakeling, composite naar gewone TV. Niet de
@@ -161,7 +161,7 @@ void RetroTermKCM::buildPresets()
     p({"TRS-80 Model I (1977)","1977 — Tandy/RadioShack, composite naar TV, uppercase-only",
        2,0.28,6800,0.14, 0.35,0.48,0.08, 1,0.52,0.35,
        0.58,0.18,0.50,0.80, 0.14,0.15,1,0.10,0.12,0.00,
-       0.10,0.12,0.14,0.28,0.22, true,9.0,true,2.8, "Another Mans Treasure MIA Raw",16,384.0,192.0});
+       0.10,0.12,0.14,0.28,0.22, true,9.0,true,2.8, "Another Mans Treasure MIA Raw",16,384.0,192.0,64,16});
 
     // TRS-80 Color Computer (1980)
     // Hardware: MC6847, composite naar TV, later Tandy CM-2 monitor
@@ -173,7 +173,7 @@ void RetroTermKCM::buildPresets()
     p({"TRS-80 Color Computer (1980)","1980 — CoCo, MC6847, composite kleur-TV",
        2,0.25,6500,0.16, 0.35,0.46,0.08, 1,0.50,0.32,
        0.60,0.22,0.48,0.78, 0.13,0.16,1,0.11,0.13,0.00,
-       0.60,0.45,0.15,0.30,0.22, true,9.0,true,2.8, "Hot CoCo",16,256.0,192.0});
+       0.60,0.45,0.15,0.30,0.22, true,9.0,true,2.8, "Hot CoCo",16,256.0,192.0,32,16});
 
     // Kaypro II (1982)
     // Hardware: ingebouwde 9" green-phosphor CRT, Z80, CP/M
@@ -187,7 +187,7 @@ void RetroTermKCM::buildPresets()
     p({"Kaypro II (1982)","1982 — Draagbare CP/M, ingebouwde 9\" groene CRT",
        0,0.14,8100,0.16, 0.42,0.52,0.07, 1,0.44,0.60,
        0.58,0.22,0.50,0.86, 0.05,0.07,0,0.04,0.06,0.00,
-       0.00,0.00,0.04,0.08,0.25, true,9.0,true,2.8, "Px437 Kaypro2K G",16,640.0,192.0});
+       0.00,0.00,0.04,0.08,0.25, true,9.0,true,2.8, "Px437 Kaypro2K G",16,640.0,192.0,80,24});
 
     // Compaq Portable (1982)
     // Hardware: ingebouwde 9" groene CRT, eerste IBM-compatibele draagbare
@@ -203,7 +203,7 @@ void RetroTermKCM::buildPresets()
     p({"Compaq Portable (1982)","1982 — Eerste IBM-compatibele draagbare, 9\" groen",
        0,0.12,7600,0.20, 0.40,0.50,0.08, 1,0.42,0.55,
        0.60,0.25,0.52,0.88, 0.06,0.08,0,0.04,0.06,0.00,
-       0.00,0.00,0.05,0.10,0.28, true,9.0,true,2.8, "Px437 Compaq Port3",16,640.0,200.0});
+       0.00,0.00,0.05,0.10,0.28, true,9.0,true,2.8, "Px437 Compaq Port3",16,640.0,200.0,80,25});
 
     // DEC Rainbow 100 (1982)
     // Hardware: VR201 monitor, 80×24, CP/M en DOS
@@ -220,7 +220,7 @@ void RetroTermKCM::buildPresets()
     p({"DEC Rainbow 100 (1982)","1982 — DEC's CP/M+DOS hybride, VR201 groene monitor",
        0,0.10,8200,0.14, 0.18,0.35,0.05, 1,0.38,0.62,
        0.52,0.18,0.55,0.86, 0.04,0.05,0,0.03,0.04,0.00,
-       0.00,0.00,0.04,0.08,0.18, true,8.0,true,2.5, "PxPlus Rainbow100 re.40",16,800.0,240.0});
+       0.00,0.00,0.04,0.08,0.18, true,8.0,true,2.5, "PxPlus Rainbow100 re.40",16,800.0,240.0,80,24});
 
     // TeleVideo 925 (1982)
     // Hardware: 12" groene CRT, 80×24, UNIX/CP/M kantoor-terminal
@@ -237,7 +237,7 @@ void RetroTermKCM::buildPresets()
     p({"TeleVideo TVI-925 (1982)","1982 — Populaire UNIX-terminal, 12\" P31 groen",
        0,0.07,8300,0.12, 0.20,0.34,0.04, 1,0.36,0.66,
        0.50,0.16,0.56,0.87, 0.04,0.05,0,0.03,0.04,0.00,
-       0.00,0.00,0.04,0.07,0.18, true,8.0,true,2.2, "Px437 Wyse700b",16,0.0,0.0});
+       0.00,0.00,0.04,0.07,0.18, true,8.0,true,2.2, "Px437 Wyse700b",16,0.0,0.0,80,24});
 
     // Apple Lisa (1983)
     // Hardware: 12" monochrome CRT, 720×364, eerste GUI-computer van Apple.
@@ -252,7 +252,7 @@ void RetroTermKCM::buildPresets()
     p({"Apple Lisa (1983)","1983 — Eerste Apple GUI-computer, 12\" b/w CRT",
        2,0.10,8800,0.06, 0.14,0.38,0.08, 0,0.15,0.70,
        0.38,0.08,0.62,0.91, 0.02,0.03,0,0.02,0.03,0.00,
-       0.00,0.00,0.03,0.04,0.30, true,6.0,true,2.0, "LisaTerminal Paper Raw",13,720.0,364.0});
+       0.00,0.00,0.03,0.04,0.30, true,6.0,true,2.0, "LisaTerminal Paper Raw",13,720.0,364.0,0,0});
 
     // Amstrad PC1512 (1986)
     // Hardware: geleverd met PC-CD (kleur) of PC-MD (mono) monitor. Let op: de
@@ -266,7 +266,7 @@ void RetroTermKCM::buildPresets()
     p({"Amstrad PC1512 (1986)","1986 — Goedkope Britse IBM-kloon, PC-CD kleurenmonitor",
        2,0.16,6800,0.12, 0.22,0.36,0.06, 1,0.42,0.48,
        0.52,0.20,0.52,0.82, 0.07,0.09,0,0.06,0.08,0.00,
-       0.70,0.42,0.08,0.14,0.18, true,8.0,true,2.5, "PxPlus Amstrad PC-2y",16,640.0,200.0});
+       0.70,0.42,0.08,0.14,0.18, true,8.0,true,2.5, "PxPlus Amstrad PC-2y",16,640.0,200.0,80,25});
 
     // Atari ST — SM124 mono (1985)
     // Hardware: SM124 monochroom monitor, 640×400, P4 wit fosfor
@@ -279,7 +279,7 @@ void RetroTermKCM::buildPresets()
     p({"Atari ST SM124 (1985)","1985 — Atari ST mono, SM124 wit fosfor, 640×400",
        2,0.08,8600,0.06, 0.08,0.28,0.05, 1,0.18,0.75,
        0.35,0.08,0.60,0.90, 0.02,0.03,0,0.02,0.03,0.00,
-       0.00,0.00,0.03,0.04,0.15, true,6.0,true,1.8, "Project Jason Small",14,640.0,400.0});
+       0.00,0.00,0.03,0.04,0.15, true,6.0,true,1.8, "Project Jason Small",14,640.0,400.0,80,25});
 
     // NEC APC III (1984)
     // Hardware: Japanse professionele PC, 14" monochrome monitor, 640×400
@@ -293,7 +293,7 @@ void RetroTermKCM::buildPresets()
     p({"NEC APC III (1984)","1984 — Japanse professionele PC, 14\" groen, 640×400",
        0,0.08,8400,0.10, 0.16,0.30,0.04, 1,0.32,0.68,
        0.46,0.14,0.58,0.88, 0.03,0.04,0,0.02,0.04,0.00,
-       0.00,0.00,0.04,0.06,0.14, true,7.0,true,2.0, "Px437 NEC APC3 8x16",16,640.0,400.0});
+       0.00,0.00,0.04,0.06,0.14, true,7.0,true,2.0, "Px437 NEC APC3 8x16",16,640.0,400.0,80,25});
 
     // HP 150 Touchscreen (1983)
     // Hardware: ingebouwde 9" CRT, eerste touchscreen-PC (infraroodraster)
@@ -308,7 +308,7 @@ void RetroTermKCM::buildPresets()
     p({"HP 150 Touchscreen (1983)","1983 — HP's eerste touchscreen-PC, 9\" b/w CRT",
        2,0.08,8700,0.07, 0.22,0.40,0.06, 1,0.40,0.62,
        0.48,0.14,0.60,0.89, 0.03,0.04,0,0.02,0.03,0.00,
-       0.00,0.00,0.04,0.06,0.24, true,7.0,true,2.0, "PxPlus HP 150 re.",16,512.0,390.0});
+       0.00,0.00,0.04,0.06,0.24, true,7.0,true,2.0, "PxPlus HP 150 re.",16,512.0,390.0,80,27});
 
     // Apple IIgs (1986)
     // Hardware: Apple RGB monitor A2M6014, shadow mask, 320×200 of 640×200
@@ -321,7 +321,7 @@ void RetroTermKCM::buildPresets()
     p({"Apple IIgs (1986)","1986 — Apple IIgs, RGB-monitor, 4096 kleuren",
        2,0.08,7400,0.08, 0.18,0.32,0.05, 1,0.36,0.55,
        0.48,0.14,0.56,0.85, 0.04,0.05,0,0.03,0.05,0.00,
-       0.75,0.45,0.07,0.10,0.14, true,7.0,true,2.0, "Shaston 320",14,320.0,200.0});
+       0.75,0.45,0.07,0.10,0.14, true,7.0,true,2.0, "Shaston 320",14,280.0,192.0,40,24});
 
     // Sharp MZ-700 (1982)
     // Hardware: géén ingebouwde monitor — dat was juist dé verandering ten
@@ -335,7 +335,7 @@ void RetroTermKCM::buildPresets()
     p({"Sharp MZ-700 (1982)","1982 — Japanse Sharp, externe TV/monitor",
        2,0.16,6600,0.12, 0.36,0.44,0.07, 1,0.46,0.44,
        0.54,0.18,0.52,0.83, 0.09,0.10,1,0.06,0.08,0.00,
-       0.45,0.32,0.10,0.16,0.22, true,8.0,true,2.5, "Mizuno",14,320.0,200.0});
+       0.45,0.32,0.10,0.16,0.22, true,8.0,true,2.5, "Mizuno",14,320.0,200.0,40,25});
 
     // Mattel Aquarius (1983)
     // Hardware: composite naar TV, Zilog Z80, Mattel's mislukte home computer
@@ -348,7 +348,7 @@ void RetroTermKCM::buildPresets()
     p({"Mattel Aquarius (1983)","1983 — Mattel's mislukte home computer, composite-TV",
        2,0.22,6400,0.18, 0.36,0.48,0.08, 1,0.54,0.30,
        0.62,0.22,0.48,0.78, 0.18,0.18,1,0.14,0.14,0.00,
-       0.55,0.38,0.16,0.35,0.24, true,10.0,true,3.0, "Antiquarius",16,320.0,192.0});
+       0.55,0.38,0.16,0.35,0.24, true,10.0,true,3.0, "Antiquarius",16,320.0,192.0,40,24});
 
     // Commodore VIC-20 (1981)
     // Hardware: MOS 6560/6561 (VIC), composite naar TV
@@ -358,7 +358,7 @@ void RetroTermKCM::buildPresets()
     p({"Commodore VIC-20 (1981)","1981 — First color Commodore home computer",
        2,0.28,6000,0.20, 0.40,0.52,0.09, 1,0.58,0.30,
        0.68,0.30,0.46,0.75, 0.16,0.20,1,0.15,0.16,0.00,
-       0.50,0.42,0.20,0.38,0.22, true,10.0,true,3.0, "C64 Pro Mono",16,176.0,184.0});
+       0.50,0.42,0.20,0.38,0.22, true,10.0,true,3.0, "C64 Pro Mono",16,176.0,184.0,22,23});
 
     // MSX (1983)
     // Hardware: TMS9918 video, composite naar TV
@@ -369,7 +369,7 @@ void RetroTermKCM::buildPresets()
     p({"MSX (1983)","1983 — Japanese home computer standard (Sony, Philips, Panasonic)",
        2,0.24,6500,0.18, 0.35,0.46,0.07, 1,0.52,0.36,
        0.62,0.24,0.50,0.79, 0.12,0.14,1,0.10,0.12,0.00,
-       0.58,0.42,0.15,0.28,0.22, true,9.0,true,2.8, "VT323",14,256.0,192.0});
+       0.58,0.42,0.15,0.28,0.22, true,9.0,true,2.8, "VT323",14,256.0,192.0,40,24});
 
     // Sun-3 Workstation (1985)
     // Hardware: bwtwo monochrome framebuffer, 19" monochrome CRT. Niet "GX":
@@ -381,7 +381,7 @@ void RetroTermKCM::buildPresets()
     p({"Sun-3 Workstation (1985)","1985 — UNIX workstation, bwtwo framebuffer",
        2,0.12,8200,0.08, 0.10,0.25,0.04, 1,0.28,0.68,
        0.40,0.12,0.58,0.86, 0.03,0.04,0,0.02,0.04,0.00,
-       0.00,0.00,0.04,0.06,0.12, true,6.0,true,2.0, "DejaVu Sans Mono",14,1152.0,900.0});
+       0.00,0.00,0.04,0.06,0.12, true,6.0,true,2.0, "DejaVu Sans Mono",14,1152.0,900.0,0,0});
 
 }
 
@@ -820,8 +820,17 @@ QGroupBox *RetroTermKCM::buildFontSection()
             "<i>already drawn</i>, so it cannot pick the font those characters "
             "were rendered with — the font belongs to the terminal emulator, not "
             "to KWin. Each preset therefore only <i>recommends</i> a font.</p>"
-            "<p>Konsole stores its font in a profile file, which this page can "
-            "write for you. For other terminals, set the font yourself:</p>"
+            "<p>That also means the CRT effect's pixel-scaling (Setup tab) and "
+            "Konsole's own rendering are otherwise unrelated: the shader "
+            "resamples whatever Konsole already drew, at whatever size Konsole "
+            "happened to draw it. Where a preset has a sourced historical text "
+            "grid, this page sets Konsole's own window size to match — so the "
+            "font actually renders across the same grid the shader is "
+            "simulating, not an arbitrary modern terminal size cut through by "
+            "a generic resample.</p>"
+            "<p>Konsole stores its font (and window size) in a profile file, "
+            "which this page can write for you. For other terminals, set the "
+            "font yourself:</p>"
             "<ul>"
             "<li><b>kitty</b> — <code>font_family</code> in <code>~/.config/kitty/kitty.conf</code></li>"
             "<li><b>Alacritty</b> — <code>font.normal.family</code> in <code>~/.config/alacritty/alacritty.toml</code></li>"
@@ -862,13 +871,17 @@ QGroupBox *RetroTermKCM::buildFontSection()
                 return;
             }
             QString err;
-            if (applyFontToKonsole(m_presetFont, m_presetFontSize, &err)) {
+            if (applyFontToKonsole(m_presetFont, m_presetFontSize,
+                                    m_presetCols, m_presetRows, &err)) {
+                const QString gridPart = (m_presetCols > 0 && m_presetRows > 0)
+                    ? i18n(" and resized it to %1×%2 characters", m_presetCols, m_presetRows)
+                    : QString();
                 m_fontStatus->setText(i18n(
                     "<span style=\"color:#27ae60;\">Wrote <b>%1</b> %2pt to "
-                    "%3.</span> Open a new Konsole tab or window to see it — "
+                    "%3%4.</span> Open a new Konsole tab or window to see it — "
                     "Konsole reads a profile when a session starts.",
                     m_presetFont, m_presetFontSize,
-                    m_konsoleProfile->currentText()));
+                    m_konsoleProfile->currentText(), gridPart));
             } else {
                 m_fontStatus->setText(i18n(
                     "<span style=\"color:#c0392b;\">Could not write the profile: "
@@ -1245,7 +1258,8 @@ void RetroTermKCM::refreshKonsoleProfiles()
     }
 }
 
-bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize, QString *error)
+bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize,
+                                       int cols, int rows, QString *error)
 {
     if (!m_konsoleProfile || !m_konsoleProfile->isEnabled()) {
         if (error) *error = i18n("no Konsole profile selected");
@@ -1259,26 +1273,35 @@ bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize, QStr
 
     KSharedConfig::Ptr cfg = KSharedConfig::openConfig(path, KConfig::SimpleConfig);
     KConfigGroup appearance = cfg->group(QStringLiteral("Appearance"));
+    KConfigGroup general    = cfg->group(QStringLiteral("General"));
 
-    // Stash whatever font (and antialiasing setting, see below) the profile
-    // had before Phosphor ever touched it, so "Restore" can put the user's own
-    // choice back. Written once per profile: overwriting it on every preset
-    // load would, after two presets, only be able to restore the *previous
-    // preset's* font — which is not what a user who spent time picking their
-    // terminal font is asking to get back.
+    // Stash whatever font/antialiasing/grid the profile had before Phosphor
+    // ever touched it, so "Restore" can put the user's own choice back.
+    // Written once per profile: overwriting it on every preset load would,
+    // after two presets, only be able to restore the *previous preset's*
+    // choices — which is not what a user who spent time on their own profile
+    // is asking to get back.
     const QString previousFont =
         appearance.readEntry(QStringLiteral("Font"), QString());
     const bool previousAA =
         appearance.readEntry(QStringLiteral("AntiAliasFonts"), true);
+    const int previousCols = general.readEntry(QStringLiteral("TerminalColumns"), 0);
+    const int previousRows = general.readEntry(QStringLiteral("TerminalRows"), 0);
     KConfigGroup ours = KSharedConfig::openConfig(QStringLiteral("kwinrc"))
                             ->group(QLatin1String(CFG_GROUP));
     const QString backupKey =
         QStringLiteral("OriginalKonsoleFont-") + QFileInfo(path).fileName();
     const QString backupAAKey =
         QStringLiteral("OriginalKonsoleAA-") + QFileInfo(path).fileName();
+    const QString backupColsKey =
+        QStringLiteral("OriginalKonsoleCols-") + QFileInfo(path).fileName();
+    const QString backupRowsKey =
+        QStringLiteral("OriginalKonsoleRows-") + QFileInfo(path).fileName();
     if (!previousFont.isEmpty() && !ours.hasKey(backupKey)) {
         ours.writeEntry(backupKey, previousFont);
         ours.writeEntry(backupAAKey, previousAA);
+        ours.writeEntry(backupColsKey, previousCols);
+        ours.writeEntry(backupRowsKey, previousRows);
         ours.sync();
     }
 
@@ -1296,6 +1319,23 @@ bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize, QStr
     // opposite of what a CRT preset is going for. Off whenever Phosphor sets
     // the font; restoreKonsoleFont() below puts it back exactly as found.
     appearance.writeEntry(QStringLiteral("AntiAliasFonts"), false);
+
+    // The other half of "the font renders on the normal desktop, not the
+    // simulated screen": the CRT effect's pixel-scaling resamples whatever
+    // Konsole already rendered, quantizing it down to the historical pixel
+    // resolution — but that quantization grid means nothing to Konsole's own
+    // renderer unless the *window* actually spans that many character cells.
+    // Setting TerminalColumns/TerminalRows to the preset's real historical
+    // text-mode grid (sourced per-machine, not derived from pixel size — see
+    // PresetValues::targetCols/targetRows) means Konsole's own rendered
+    // window lines up with the resolution the shader is simulating, instead
+    // of an arbitrary modern terminal size the effect then has to quantize
+    // through blindly. 0 (no documented grid for this machine) leaves
+    // whatever size the profile already had alone.
+    if (cols > 0 && rows > 0) {
+        general.writeEntry(QStringLiteral("TerminalColumns"), cols);
+        general.writeEntry(QStringLiteral("TerminalRows"), rows);
+    }
     cfg->sync();
 
     if (cfg->accessMode() != KConfig::ReadWrite) {
@@ -1323,28 +1363,42 @@ bool RetroTermKCM::restoreKonsoleFont(QString *error)
         QStringLiteral("OriginalKonsoleFont-") + QFileInfo(path).fileName();
     const QString backupAAKey =
         QStringLiteral("OriginalKonsoleAA-") + QFileInfo(path).fileName();
+    const QString backupColsKey =
+        QStringLiteral("OriginalKonsoleCols-") + QFileInfo(path).fileName();
+    const QString backupRowsKey =
+        QStringLiteral("OriginalKonsoleRows-") + QFileInfo(path).fileName();
     const QString original = ours.readEntry(backupKey, QString());
     if (original.isEmpty()) {
         if (error) *error = i18n("this profile has no Phosphor-saved original font");
         return false;
     }
-    // Default true (Konsole's own default) if this profile predates the
-    // AntiAliasFonts backup added alongside applyFontToKonsole()'s AA=false —
-    // an existing OriginalKonsoleFont- backup from before that change won't
-    // have a matching AA key, and "restore to what Konsole normally does" is
-    // the correct fallback, not "restore to off".
-    const bool originalAA = ours.readEntry(backupAAKey, true);
+    // Default true/0 (Konsole's own default / "leave alone") if this profile
+    // predates the AntiAliasFonts/grid backups added alongside
+    // applyFontToKonsole()'s AA=false and TerminalColumns/Rows writes — an
+    // existing OriginalKonsoleFont- backup from before those changes won't
+    // have matching keys, and "restore to what Konsole normally does" is the
+    // correct fallback, not "restore to off" or "restore to 0×0".
+    const bool originalAA   = ours.readEntry(backupAAKey, true);
+    const int  originalCols = ours.readEntry(backupColsKey, 0);
+    const int  originalRows = ours.readEntry(backupRowsKey, 0);
 
     KSharedConfig::Ptr cfg = KSharedConfig::openConfig(path, KConfig::SimpleConfig);
     KConfigGroup appearance = cfg->group(QStringLiteral("Appearance"));
     appearance.writeEntry(QStringLiteral("Font"), original);
     appearance.writeEntry(QStringLiteral("AntiAliasFonts"), originalAA);
+    if (originalCols > 0 && originalRows > 0) {
+        KConfigGroup general = cfg->group(QStringLiteral("General"));
+        general.writeEntry(QStringLiteral("TerminalColumns"), originalCols);
+        general.writeEntry(QStringLiteral("TerminalRows"), originalRows);
+    }
     cfg->sync();
 
     // Backup weggooien: het profiel staat weer op de eigen keuze van de gebruiker,
     // dus de volgende preset-toepassing mag daar opnieuw een verse backup van maken.
     ours.deleteEntry(backupKey);
     ours.deleteEntry(backupAAKey);
+    ours.deleteEntry(backupColsKey);
+    ours.deleteEntry(backupRowsKey);
     ours.sync();
     return true;
 }
@@ -1412,15 +1466,20 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     // Konsole profile when the user has asked for that.
     m_presetFont     = p.font;
     m_presetFontSize = p.fontSize;
+    m_presetCols     = p.targetCols;
+    m_presetRows     = p.targetRows;
     updateFontTabInfo();
     if (!p.font.isEmpty() && m_autoApplyFont && m_autoApplyFont->isChecked()
         && m_autoApplyFont->isEnabled()) {
         QString err;
-        if (applyFontToKonsole(p.font, p.fontSize, &err) && m_fontStatus) {
+        if (applyFontToKonsole(p.font, p.fontSize, p.targetCols, p.targetRows, &err) && m_fontStatus) {
+            const QString gridPart = (p.targetCols > 0 && p.targetRows > 0)
+                ? i18n(" and resized it to %1×%2 characters", p.targetCols, p.targetRows)
+                : QString();
             m_fontStatus->setText(i18n(
-                "<span style=\"color:#27ae60;\">Wrote <b>%1</b> %2pt to %3.</span> "
+                "<span style=\"color:#27ae60;\">Wrote <b>%1</b> %2pt to %3%4.</span> "
                 "Open a new Konsole tab or window to see it.",
-                p.font, p.fontSize, m_konsoleProfile->currentText()));
+                p.font, p.fontSize, m_konsoleProfile->currentText(), gridPart));
         } else if (m_fontStatus && !err.isEmpty()) {
             m_fontStatus->setText(i18n(
                 "<span style=\"color:#c0392b;\">Could not write the profile: %1</span>",
@@ -1453,7 +1512,17 @@ void RetroTermKCM::updatePresetInfo(const PresetValues &p)
         ? i18n("Target resolution: %1×%2", (int)p.targetResX, (int)p.targetResY)
         : i18n("Target resolution: native (no pixel scaling)");
 
-    m_presetInfo->setText(fontPart + QStringLiteral("<br>") + resPart);
+    // Shown so it's visible *before* "Load preset" whether this preset can
+    // actually align Konsole's rendered grid with the simulated resolution —
+    // for the machines where no documented text grid exists (bitmap-GUI
+    // systems, or conflicting sources), it honestly can't, and the font
+    // still gets applied but at whatever size the profile already has.
+    const QString gridPart = (p.targetCols > 0 && p.targetRows > 0)
+        ? i18n("Konsole grid: %1×%2 characters", p.targetCols, p.targetRows)
+        : i18n("Konsole grid: unknown for this machine — size left as-is");
+
+    m_presetInfo->setText(fontPart + QStringLiteral("<br>") + resPart
+                           + QStringLiteral("<br>") + gridPart);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

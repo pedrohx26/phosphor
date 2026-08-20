@@ -92,6 +92,16 @@ struct PresetValues {
     // Pixel scaling: original screen resolution of the system
     double targetResX          = 0.0;   // 0 = disabled
     double targetResY          = 0.0;
+    // Historical text-mode character grid (columns × rows). Not derived from
+    // targetResX/Y — several machines shared a pixel resolution across
+    // different text grids (e.g. IBM PC 320x200 was 40x25 on a composite/TV
+    // preset but 80x25 on a direct-monitor one), so this needs its own,
+    // separately sourced value. 0 = no documented fixed grid for this machine
+    // (a GUI/bitmap system like the Mac 128K or Amiga, or sources conflict) —
+    // stays unset rather than being back-computed from pixel size, which
+    // reads as authoritative when it would actually just be a guess.
+    int    targetCols          = 0;
+    int    targetRows          = 0;
 };
 
 // ── Slider + spinbox combo ────────────────────────────────────────────────────
@@ -163,8 +173,13 @@ private:
     // A KWin effect post-processes pixels a terminal has already rasterized, so
     // it can never choose the font those glyphs were drawn with. The only way to
     // honour a preset's font is to write it into the terminal's own profile.
+    // cols/rows (0 = leave the profile's grid alone) sets Konsole's own
+    // TerminalColumns/TerminalRows so the *rendered* window actually spans the
+    // historical text grid, instead of an unrelated modern terminal size the
+    // shader's pixel-scaling then has to quantize through arbitrarily.
     void        refreshKonsoleProfiles();
-    bool        applyFontToKonsole(const QString &family, int pointSize, QString *error);
+    bool        applyFontToKonsole(const QString &family, int pointSize,
+                                    int cols, int rows, QString *error);
     bool        restoreKonsoleFont(QString *error);
     void        updateFontTabInfo();
 
@@ -200,9 +215,12 @@ private:
     QCheckBox   *m_autoApplyFont  = nullptr;
     QLabel      *m_fontStatus     = nullptr;
     QLabel      *m_fontRecommend  = nullptr;
-    // Font van de laatst geladen preset; leeg zolang er geen preset geladen is.
+    // Font/grid van de laatst geladen preset; leeg/0 zolang er geen preset
+    // geladen is.
     QString      m_presetFont;
     int          m_presetFontSize = 14;
+    int          m_presetCols     = 0;
+    int          m_presetRows     = 0;
 
     // ── Parameter widgets ─────────────────────────────────────────────────────
     QMap<QString, ParamRow *>       m_params;
