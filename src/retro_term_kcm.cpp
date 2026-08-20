@@ -1842,11 +1842,14 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     //    slider goes to 0: with integer zoom active the shader ignores it,
     //    and a nonzero-but-ignored slider reads as a lie.
     //
-    // 2. Resample fallback (pixelScale 1.0) — for presets without a clean
-    //    grid. Approximate by nature: it point-samples finished glyphs and
-    //    cannot reconstruct what the terminal never rendered. Kept because
-    //    "roughly blocky" still beats nothing for GUI-era machines whose
-    //    virtual screen can't be expressed as a character grid at all.
+    // 2. No pixel scaling at all — for presets without a clean grid. The
+    //    resample path used to be turned on at 1.0 here, which was worse than
+    //    doing nothing: on an Amiga preset it point-sampled a 1850px-wide
+    //    rendering down to 320 virtual pixels and turned every glyph into
+    //    mush, while claiming to depict a machine whose text grid we
+    //    explicitly could not source. These presets still get their font,
+    //    palette, scanlines, phosphor and curvature — everything except a
+    //    fake resolution that destroys the text to assert something unproven.
     const bool authentic = m_authenticSize && m_authenticSize->isChecked();
     const int  minCols   = m_minColumns ? m_minColumns->value() : 80;
     const int  k = zoomFor(p, minCols, authentic);
@@ -1854,7 +1857,7 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     if (p.targetResX > 0.0 && p.targetResY > 0.0) {
         if (m_targetResX) m_targetResX->setValue(p.targetResX);
         if (m_targetResY) m_targetResY->setValue(p.targetResY);
-        if (m_pixelScaleRow) m_pixelScaleRow->setValue(k > 0 ? 0.0 : 1.0);
+        if (m_pixelScaleRow) m_pixelScaleRow->setValue(0.0);
         if (m_sampleModeCombo) m_sampleModeCombo->setCurrentIndex(2);
     } else {
         if (m_pixelScaleRow) m_pixelScaleRow->setValue(0.0);
@@ -1872,6 +1875,19 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     m_presetRows     = authentic ? p.targetRows : 0;
     // Pixel-exact font size for the integer-zoom path: the historical cell
     // height (resY / rows — clean by zoomFor()'s divisibility check) times k.
+    //
+    // KNOWN LIMITATION: this assumes the machine's historical cell height is
+    // also the font's cell height, which does not hold everywhere. Measured
+    // with QFontMetricsF: "PxPlus IBM EGA 8x14" renders integrally at
+    // pixelSize 16 (cell 8x14), not at the 14*k this picks; "PxPlus IBM VGA
+    // 9x16" and "Px437 IBM 3270pc" have no integral size at all between 8 and
+    // 64. Those presets still render far sharper than the resample path, but
+    // are not demonstrably pixel-exact — the guarantee holds where the font is
+    // integral at cell*k (C64 Pro Mono, Antiquarius, Mizuno, Px437 Wyse700b,
+    // verified). The proper fix is to choose the pixel size by measuring the
+    // font rather than deriving it from the historical cell, which also unlocks
+    // integer zoom for machines with no documented grid (Topaz is integral at
+    // 16, 18, 20, ...). Left as a follow-up rather than half-done here.
     m_presetFontPx   = (k > 0) ? ((int)p.targetResY / p.targetRows) * k : 0;
     m_presetScheme   = p.scheme;
     updateFontTabInfo();
@@ -1933,7 +1949,7 @@ void RetroTermKCM::updatePresetInfo(const PresetValues &p)
     QString gridPart;
     if (k <= 0) {
         gridPart = i18n("Pixel grid: no documented text grid for this machine — "
-                        "falls back to approximate resampling");
+                        "no pixel scaling (font, palette and CRT effects still apply)");
     } else if (authentic) {
         gridPart = i18n("Pixel grid: zoom %1×, terminal resized to <b>%2×%3</b> "
                         "characters (authentic, but narrow for modern prompts)",
