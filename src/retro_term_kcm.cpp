@@ -604,6 +604,17 @@ QWidget *RetroTermKCM::scrollWrap(QWidget *page)
     auto *scroll = new QScrollArea;
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
+    // These pages scroll vertically only. Without this, a word-wrapped rich
+    // text label reports a wide preferred width, the scroll area happily
+    // grants it, and the result is a horizontal scrollbar with every
+    // explanation clipped mid-sentence instead of wrapping. Forcing the
+    // horizontal bar off constrains the viewport width, which is exactly the
+    // constraint QLabel needs before it will wrap at all.
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // Floor the width so the dialog opens wide enough for the tables and
+    // button rows to breathe, rather than collapsing to the narrowest thing
+    // that technically fits.
+    scroll->setMinimumWidth(560);
     scroll->setWidget(page);
     return scroll;
 }
@@ -1018,37 +1029,19 @@ QGroupBox *RetroTermKCM::buildFontSection()
         // Explanation lives as the group's first row rather than a separate
         // label above it — this section moved into the combined Setup tab,
         // where a floating label before a GroupBox reads as detached from it.
+        // Short on purpose. This started as five paragraphs explaining the
+        // architecture, which is the wrong place for it twice over: a settings
+        // page is not documentation, and a long wrapped label inside a
+        // QFormLayout inside a QScrollArea reports a wide preferred width and
+        // ends up clipped mid-sentence rather than wrapping. The reasoning now
+        // lives in the tooltips, the code comments and fonts/README.md; what
+        // stays here is only the part a user must know at the moment they
+        // press the button.
         auto *expl = new QLabel(i18n(
-            "<p>A KWin effect post-processes pixels that the terminal has "
-            "<i>already drawn</i>, so it cannot pick the font those characters "
-            "were rendered with — the font belongs to the terminal emulator, not "
-            "to KWin. Each preset therefore only <i>recommends</i> a font.</p>"
-            "<p>That also means the CRT effect's pixel-scaling (Setup tab) and "
-            "Konsole's own rendering are otherwise unrelated: the shader "
-            "resamples whatever Konsole already drew, at whatever size Konsole "
-            "happened to draw it. Where a preset has a sourced historical text "
-            "grid, this page sets Konsole's own window size to match — so the "
-            "font actually renders across the same grid the shader is "
-            "simulating, not an arbitrary modern terminal size cut through by "
-            "a generic resample.</p>"
-            "<p><b>Loading a preset changes two things at different times.</b> "
-            "The CRT effect — scanlines, phosphor, curvature, pixel scaling — "
-            "applies to open windows immediately. The font, colour palette and "
-            "window size are written into the Konsole profile, and Konsole only "
-            "reads a profile when a session starts, so <b>an already-open "
-            "terminal keeps the font and colours it started with</b>. That is a "
-            "Konsole restriction, not a setting: its remote interface for "
-            "changing a live session's profile is disabled as security "
-            "sensitive. Use \"Open a new Konsole window\" below to see the "
-            "whole preset.</p>"
-            "<p>Konsole stores its font (and window size) in a profile file, "
-            "which this page can write for you. For other terminals, set the "
-            "font yourself:</p>"
-            "<ul>"
-            "<li><b>kitty</b> — <code>font_family</code> in <code>~/.config/kitty/kitty.conf</code></li>"
-            "<li><b>Alacritty</b> — <code>font.normal.family</code> in <code>~/.config/alacritty/alacritty.toml</code></li>"
-            "<li><b>WezTerm</b> — <code>font = wezterm.font(...)</code> in <code>~/.wezterm.lua</code></li>"
-            "</ul>"));
+            "The font and colours belong to the terminal, not to KWin, so they "
+            "are written into a Konsole profile.<br>"
+            "<b>Konsole reads a profile only when a session starts</b> — an "
+            "already-open window keeps what it started with."));
         expl->setWordWrap(true);
         expl->setTextFormat(Qt::RichText);
         fl->addRow(expl);
@@ -1129,9 +1122,17 @@ QGroupBox *RetroTermKCM::buildFontSection()
         // explaining that in text, offer the one action that resolves it.
         auto *newTermBtn = new QPushButton(i18n("Open a new Konsole window"));
         newTermBtn->setToolTip(i18n(
-            "Font, colours and window size only apply to newly started Konsole "
-            "sessions — an already-open window keeps the profile it started "
-            "with. This opens a fresh one so you can see the preset."));
+            "Loading a preset changes two things at different times. The CRT "
+            "effect — scanlines, phosphor, curvature, pixel scaling — applies "
+            "to open windows immediately. The font, colour palette and window "
+            "size go into the Konsole profile, which Konsole reads only when a "
+            "session starts, so an already-open window keeps the font and "
+            "colours it started with. That is a Konsole restriction, not a "
+            "setting: its remote interface for changing a live session's "
+            "profile is refused as security sensitive.\n\n"
+            "This opens a fresh window so you can see the whole preset.\n\n"
+            "Other terminals: set the font yourself — kitty's font_family, "
+            "Alacritty's font.normal.family, WezTerm's wezterm.font()."));
         connect(newTermBtn, &QPushButton::clicked, this, [this] {
             if (!QProcess::startDetached(QStringLiteral("konsole"), {}) && m_fontStatus)
                 m_fontStatus->setText(i18n(
