@@ -211,25 +211,38 @@ vec3 colorTemp(vec3 col) {
 
 // Scanlines operate on effective resolution when pixelScale is active,
 // so scanlines align with scaled pixels
+// One axis of a raster pattern, box-filtered over the pixel footprint.
+//
+// The naive fract()-profile evaluated per physical pixel beats against the
+// pixel grid wherever the local period drifts — and barrel distortion makes
+// it drift everywhere, which showed up as large elliptical moiré rings across
+// the whole terminal. A cosine profile can be box-filtered analytically: the
+// average of cos(2πx) over a window w is cos(2πc)·sinc(πw), so the pattern
+// fades smoothly toward its own mean exactly where the pixel grid can no
+// longer represent it, instead of aliasing into rings. Sharpness shapes the
+// filtered profile with a power curve (higher = deeper, narrower gaps).
+float scanAxis(float coord, float res) {
+    float ph  = coord * res;
+    float w   = max(fwidth(ph), 1e-4);
+    float att = (w >= 1.0) ? 0.0 : sin(3.14159265 * w) / (3.14159265 * w);
+    float v   = 0.5 - 0.5 * cos(6.2831853 * ph) * att;
+    return pow(clamp(v, 0.0, 1.0), mix(0.6, 2.5, scanlinesSharpness));
+}
+
 // Returns a per-channel mask so mode 3 can tint individual subpixels; modes
 // 0-2 are achromatic and simply return the same value in all three channels.
 vec3 scanlines(vec2 uv) {
     if (rasterizationMode == 0) return vec3(1.0);
 
-    // Use effective resolution for scanline positioning
-    float effY = effectiveRes().y;
-    float ph   = fract(uv.y * effY);
+    vec2 er = effectiveRes();
 
     if (rasterizationMode == 1) {
-        float l = smoothstep(0.0, scanlinesSharpness + 0.01, ph)
-                * smoothstep(1.0, 1.0 - scanlinesSharpness - 0.01, ph);
+        float l = scanAxis(uv.y, er.y);
         return vec3(mix(1.0, l, scanlinesIntensity));
     }
     if (rasterizationMode == 2) {
-        float effX = effectiveRes().x;
-        float px = smoothstep(0.0, 0.4, fract(uv.x * effX))
-                 * smoothstep(1.0, 0.6, fract(uv.x * effX));
-        float py = smoothstep(0.0, 0.4, ph) * smoothstep(1.0, 0.6, ph);
+        float px = scanAxis(uv.x, er.x);
+        float py = scanAxis(uv.y, er.y);
         return vec3(mix(1.0, px * py, scanlinesIntensity));
     }
     if (rasterizationMode == 3) {
@@ -248,6 +261,11 @@ vec3 scanlines(vec2 uv) {
         // Normalise so the grille darkens the image no more than the other modes
         // at the same intensity, instead of dropping it to a third brightness.
         m *= 1.0 / max(max(m.r, max(m.g, m.b)), 1e-3);
+        // Same anti-moiré treatment as scanAxis(): fade the stripes out where
+        // the pixel grid can't represent them, instead of aliasing.
+        float w   = max(fwidth(uv.x * effX), 1e-4);
+        float att = (w >= 1.0) ? 0.0 : sin(3.14159265 * w) / (3.14159265 * w);
+        m = mix(vec3(1.0), m, att);
         return mix(vec3(1.0), m, scanlinesIntensity);
     }
     return vec3(1.0);

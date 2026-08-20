@@ -103,6 +103,12 @@ struct PresetValues {
     // reads as authoritative when it would actually just be a guess.
     int    targetCols          = 0;
     int    targetRows          = 0;
+    // Konsole colorscheme id for this preset (see SCHEME_DEFS in the .cpp) —
+    // colors are a terminal setting, exactly like the font: the shader can
+    // tint a monochrome phosphor, but "light blue on C64 blue" has to come
+    // from the terminal's own palette. Empty = leave the profile's scheme
+    // alone (preset makes no color claim).
+    QString scheme;
 };
 
 // ── Slider + spinbox combo ────────────────────────────────────────────────────
@@ -187,7 +193,12 @@ private:
     // area is exactly cols×cellW×k by rows×cellH×k with nothing added.
     bool        applyFontToKonsole(const QString &family, int pointSize,
                                     int cols, int rows, int fontPixelSize,
-                                    QString *error);
+                                    const QString &scheme, QString *error);
+    // Writes ~/.local/share/konsole/Phosphor <id>.colorscheme from SCHEME_DEFS
+    // (Konsole color schemes are plain user-writable INI files — no install
+    // step involved). Returns the scheme name to reference from a profile, or
+    // empty when the id is unknown.
+    QString     ensureColorScheme(const QString &id);
     // Largest integer zoom k that fits the preset's virtual screen on the
     // current display, or 0 when the preset has no clean sourced grid+cell.
     static int  zoomFor(const PresetValues &p);
@@ -233,6 +244,7 @@ private:
     int          m_presetCols     = 0;
     int          m_presetRows     = 0;
     int          m_presetFontPx   = 0;   // pixel-exact font size (cell × k), 0 = use points
+    QString      m_presetScheme;         // colorscheme-id van de laatst geladen preset
 
     // ── Parameter widgets ─────────────────────────────────────────────────────
     QMap<QString, ParamRow *>       m_params;
