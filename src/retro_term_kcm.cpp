@@ -13,6 +13,10 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QGuiApplication>
+#include <QPainter>
+#include <QProcess>
+#include <QScreen>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -21,8 +25,12 @@
 #include <QScrollArea>
 #include <QDoubleSpinBox>
 #include <QPushButton>
+#include <QSplitter>
+#include <QStackedWidget>
 #include <QVBoxLayout>
 #include <QDebug>
+
+#include <algorithm>
 
 K_PLUGIN_FACTORY_WITH_JSON(RetroTermKCMFactory,
                             "kcm_metadata.json",
@@ -87,39 +95,62 @@ void   ParamRow::setValue(double v) {
 //
 // The look of a preset is an artistic judgement and needs no citation. The
 // hardware claims wrapped around it do.
+//
+// One artistic judgement did turn out to be a factual error, so it is written
+// down here: every TV-connected home computer used to carry syncMode 1 (sine
+// drift) plus heavy jitter, on the reasoning that "a TV picture is unstable".
+// It isn't. The VIC-II, TMS9918, ANTIC and friends emitted proper sync pulses
+// and the set locked to them; a picture that visibly wobbles horizontally is a
+// failing sync circuit or a worn videotape, not a working home computer. What
+// an RF/composite connection genuinely produced — colour bleeding, dot crawl,
+// softness, noise — is modelled by characterSmearing, rbgShift and staticNoise
+// instead, which is where it belongs. Sync artifacts are now reserved for
+// machines that plausibly had them: the 1964 delay-line IBM 2260, broadcast
+// teletext on a weak signal (rolling), and vector/radar beam instability.
+//
+// tools/check-presets.py enforces the cross-field half of this mechanically
+// (a monochrome machine must not retain colour, a colour machine must not be
+// tinted through a coloured phosphor, a P39 preset must actually decay slowly,
+// a cell size must divide its resolution, and so on). It reports one standing
+// warning, which is answered here rather than silenced: the IBM 2260 carries a
+// long persistence (0.60) with the neutral P4 white phosphor. Its actual
+// phosphor is undocumented — the earlier audit marked it unverifiable — but a
+// 1964 display refreshed from a sonic delay line needed a slow decay to avoid
+// flicker, so the persistence is deliberate while the white tint stays neutral
+// rather than claiming the green P39 the shader would otherwise imply.
 void RetroTermKCM::buildPresets()
 {
     auto p = [&](PresetValues pv) { m_presets.append(pv); };
 
-    p({"Default (amber)","—",1,0.05,7000,0.10,0.25,0.35,0.04,1,0.35,0.50,0.55,0.20,0.50,0.80,0.08,0.10,0,0.05,0.08,0.00,0.20,0.20,0.10,0.08,0.20,true,8.0,true,2.5,"VT323",16,0.0,0.0});
-    p({"IBM 2260 (1964)","1964 — Vroege IBM-mainframeterminal, 80×12",2,0.55,8500,0.60,0.45,0.65,0.12,0,0.35,0.50,0.80,0.45,0.42,0.90,0.18,0.25,1,0.20,0.22,0.00,0.00,0.00,0.15,0.30,0.50,true,15.0,true,4.0,"Glass TTY VT220",16,0.0,0.0});
-    p({"DEC GT40 (1972)","1972 — Vectorterminal PDP-11, P39",3,0.40,7800,0.80,0.20,0.55,0.08,0,0.35,0.50,0.85,0.60,0.38,0.85,0.10,0.15,0,0.08,0.15,0.00,0.05,0.10,0.06,0.15,0.35,true,12.0,true,3.5,"VT323",18,1024.0,768.0});
-    p({"DEC VT100 (1978)","1978 — Dé referentieterminal",0,0.12,8000,0.18,0.22,0.38,0.05,1,0.40,0.55,0.52,0.22,0.52,0.82,0.06,0.08,0,0.05,0.07,0.00,0.05,0.08,0.05,0.10,0.22,true,9.0,true,2.5,"VT323",18,800.0,240.0});
-    p({"IBM 3270 (1971)","1971 — IBM-mainframe blokmodus",0,0.18,8200,0.25,0.28,0.42,0.06,1,0.35,0.60,0.48,0.18,0.50,0.88,0.05,0.06,0,0.04,0.05,0.00,0.04,0.06,0.04,0.08,0.35,true,10.0,true,2.8,"Px437 IBM 3270pc",16,720.0,350.0});
-    p({"Wyse WY-50 (1983)","1983 — UNIX-werkterminal, 14\" groen",0,0.08,8400,0.14,0.18,0.32,0.04,1,0.38,0.65,0.55,0.20,0.55,0.85,0.04,0.06,0,0.03,0.05,0.00,0.04,0.08,0.04,0.08,0.20,true,8.0,true,2.5,"Px437 Wyse700b",16,800.0,312.0});
-    p({"Militair Radar (1958)","1958 — SAGE AN/FSQ-7, 19\" P14 nalichtend",3,0.50,7000,0.90,0.15,0.70,0.10,0,0.35,0.50,0.90,0.70,0.35,0.95,0.15,0.20,0,0.10,0.18,0.00,0.04,0.08,0.06,0.20,0.55,true,20.0,true,5.0,"Share Tech Mono",16,0.0,0.0});
-    p({"Apple II (1977)","1977 — NTSC-TV, composite",2,0.30,6500,0.22,0.38,0.50,0.08,1,0.55,0.35,0.65,0.28,0.48,0.78,0.14,0.18,1,0.12,0.14,0.00,0.45,0.35,0.18,0.35,0.28,true,10.0,true,3.0,"Print Char 21",16,280.0,192.0});
-    p({"Commodore 64 (1982)","1982 — VIC-II, PAL-TV",2,0.22,6200,0.18,0.35,0.45,0.07,1,0.50,0.38,0.60,0.25,0.50,0.80,0.12,0.14,1,0.10,0.12,0.00,0.55,0.40,0.14,0.28,0.25,true,9.0,true,2.8,"C64 Pro Mono",14,320.0,200.0});
-    p({"ZX Spectrum (1982)","1982 — PAL-TV, attribuutcellen",2,0.25,6300,0.16,0.38,0.48,0.08,1,0.52,0.33,0.62,0.24,0.52,0.78,0.13,0.16,1,0.11,0.13,0.00,0.60,0.45,0.16,0.30,0.20,true,9.0,true,2.8,"VT323",14,256.0,192.0});
-    p({"BBC Micro (1981)","1981 — Britse schoolcomputer",2,0.20,6600,0.16,0.30,0.44,0.07,1,0.50,0.38,0.60,0.22,0.50,0.80,0.10,0.12,1,0.09,0.11,0.00,0.55,0.40,0.14,0.25,0.22,true,9.0,true,2.8,"Bedstead",16,320.0,256.0});
-    p({"Atari 400/800 (1979)","1979 — ANTIC/CTIA, NTSC-TV",2,0.26,6400,0.19,0.36,0.47,0.07,1,0.52,0.35,0.62,0.26,0.50,0.79,0.12,0.15,1,0.10,0.13,0.00,0.50,0.38,0.15,0.30,0.24,true,9.0,true,2.8,"Atari Classic",16,320.0,192.0});
-    p({"IBM PC MDA (1981)","1981 — IBM 5151, P39",3,0.15,7500,0.30,0.20,0.40,0.06,1,0.42,0.60,0.58,0.28,0.50,0.88,0.05,0.07,0,0.04,0.06,0.00,0.04,0.06,0.05,0.10,0.30,true,8.0,true,2.5,"PxPlus IBM MDA",16,720.0,350.0});
-    p({"IBM PC CGA (1981)","1981 — CGA op composite/TV",2,0.20,7000,0.15,0.25,0.38,0.06,1,0.45,0.50,0.55,0.22,0.52,0.83,0.08,0.10,0,0.06,0.08,0.00,0.65,0.45,0.10,0.15,0.22,true,8.0,true,2.5,"PxPlus IBM CGA",16,320.0,200.0});
-    p({"IBM PC EGA (1984)","1984 — IBM 5154, 16 kleuren",2,0.14,7200,0.12,0.20,0.32,0.05,1,0.38,0.58,0.50,0.18,0.54,0.84,0.06,0.08,0,0.04,0.06,0.00,0.60,0.38,0.08,0.12,0.18,true,8.0,true,2.5,"PxPlus IBM EGA 8x14",14,640.0,350.0});
-    p({"Tandy 1000 (1984)","1984 — Verbeterde CGA",2,0.22,6800,0.15,0.28,0.42,0.07,1,0.48,0.42,0.58,0.22,0.50,0.80,0.10,0.12,1,0.08,0.10,0.00,0.70,0.48,0.12,0.20,0.24,true,9.0,true,2.8,"PxPlus Tandy1K-II 200L",16,320.0,200.0});
-    p({"IBM PS/2 VGA (1987)","1987 — De DOS-standaard",2,0.10,7400,0.10,0.15,0.28,0.04,1,0.32,0.62,0.45,0.15,0.55,0.85,0.05,0.06,0,0.03,0.05,0.00,0.65,0.35,0.07,0.10,0.15,true,7.0,true,2.2,"PxPlus IBM VGA 9x16",16,720.0,400.0});
-    p({"Amiga 500 (1987)","1987 — PAL-TV of 1084S",2,0.15,6800,0.14,0.25,0.38,0.06,1,0.48,0.44,0.55,0.20,0.52,0.81,0.08,0.10,0,0.05,0.08,0.00,0.65,0.42,0.10,0.18,0.18,true,8.0,true,2.5,"Topaz a500a1000a2000",14,320.0,256.0});
-    p({"Amiga WorkBench 2 (1990)","1990 — 1084S RGB-monitor",2,0.10,7000,0.10,0.20,0.30,0.05,1,0.40,0.52,0.48,0.16,0.56,0.83,0.06,0.08,0,0.04,0.06,0.00,0.68,0.38,0.08,0.14,0.14,true,7.0,true,2.2,"Topaz a500a1000a2000",14,640.0,256.0});
-    p({"Apple Macintosh 128K (1984)","1984 — 9-inch b/w CRT",2,0.35,9000,0.08,0.15,0.55,0.12,2,0.20,0.70,0.35,0.10,0.60,0.92,0.03,0.04,0,0.02,0.04,0.00,0.00,0.00,0.04,0.05,0.40,true,6.0,true,2.0,"Silkscreen",12,512.0,342.0});
+    p({"Default (amber)","—",1,0.05,7000,0.10,0.25,0.35,0.04,1,0.35,0.50,0.55,0.20,0.50,0.80,0.08,0.10,0,0.05,0.08,0.00,0.20,0.20,0.10,0.08,0.20,true,8.0,true,2.5,"VT323",16,0.0,0.0,0,0,"mono"});
+    p({"IBM 2260 (1964)","1964 — Vroege IBM-mainframeterminal, 80×12",2,0.55,8500,0.60,0.45,0.65,0.12,0,0.35,0.50,0.80,0.45,0.42,0.90,0.18,0.08,1,0.20,0.22,0.00,0.00,0.00,0.15,0.30,0.50,true,15.0,false,4.0,"Glass TTY VT220",16,0.0,0.0,80,12,"mono"});
+    p({"DEC GT40 (1972)","1972 — Vectorterminal PDP-11, P39",3,0.40,7800,0.80,0.20,0.55,0.08,0,0.35,0.50,0.85,0.60,0.38,0.85,0.10,0.08,0,0.08,0.15,0.00,0.05,0.00,0.06,0.15,0.35,true,12.0,false,3.5,"VT323",18,1024.0,768.0,0,0,"mono"});
+    p({"DEC VT100 (1978)","1978 — Dé referentieterminal",0,0.12,8000,0.18,0.22,0.38,0.05,1,0.40,0.55,0.52,0.22,0.52,0.82,0.06,0.08,0,0.05,0.07,0.00,0.05,0.00,0.05,0.10,0.22,true,9.0,false,2.5,"VT323",18,800.0,240.0,80,24,"mono"});
+    p({"IBM 3270 (1971)","1971 — IBM-mainframe blokmodus",0,0.18,8200,0.25,0.28,0.42,0.06,1,0.35,0.60,0.48,0.18,0.50,0.88,0.05,0.06,0,0.04,0.05,0.00,0.04,0.00,0.04,0.08,0.35,true,10.0,false,2.8,"Px437 IBM 3270pc",16,0.0,0.0,80,24,"mono"});
+    p({"Wyse WY-50 (1983)","1983 — UNIX-werkterminal, 14\" groen",0,0.08,8400,0.14,0.18,0.32,0.04,1,0.38,0.65,0.55,0.20,0.55,0.85,0.04,0.06,0,0.03,0.05,0.00,0.04,0.00,0.04,0.08,0.20,true,8.0,false,2.5,"Px437 Wyse700b",16,800.0,312.0,80,24,"mono"});
+    p({"Militair Radar (1958)","1958 — SAGE AN/FSQ-7, 19\" P14 nalichtend",3,0.50,7000,0.90,0.15,0.70,0.10,0,0.35,0.50,0.90,0.70,0.35,0.95,0.15,0.12,0,0.10,0.18,0.00,0.04,0.00,0.06,0.20,0.55,true,20.0,false,5.0,"Share Tech Mono",16,0.0,0.0,0,0,"mono"});
+    p({"Apple II (1977)","1977 — NTSC-TV, composite",2,0.30,6500,0.22,0.38,0.50,0.08,1,0.55,0.35,0.65,0.28,0.48,0.78,0.14,0.02,0,0.12,0.14,0.00,0.90,0.35,0.18,0.35,0.28,true,10.0,true,3.0,"Print Char 21",16,280.0,192.0,40,24,"apple2"});
+    p({"Commodore 64 (1982)","1982 — VIC-II, PAL-TV",2,0.22,6200,0.18,0.35,0.45,0.07,1,0.50,0.38,0.60,0.25,0.50,0.80,0.12,0.02,0,0.10,0.12,0.00,0.90,0.40,0.14,0.28,0.25,true,9.0,true,2.8,"C64 Pro Mono",14,320.0,200.0,40,25,"c64"});
+    p({"ZX Spectrum (1982)","1982 — PAL-TV, attribuutcellen",2,0.25,6300,0.16,0.38,0.48,0.08,1,0.52,0.33,0.62,0.24,0.52,0.78,0.13,0.02,0,0.11,0.13,0.00,0.90,0.45,0.16,0.30,0.20,true,9.0,true,2.8,"VT323",14,256.0,192.0,32,24,"zx"});
+    p({"BBC Micro (1981)","1981 — Britse schoolcomputer",2,0.20,6600,0.16,0.30,0.44,0.07,1,0.50,0.38,0.60,0.22,0.50,0.80,0.10,0.02,0,0.09,0.11,0.00,0.90,0.40,0.14,0.25,0.22,true,9.0,true,2.8,"Bedstead",16,320.0,256.0,40,32,"teletext"});
+    p({"Atari 400/800 (1979)","1979 — ANTIC/CTIA, NTSC-TV",2,0.26,6400,0.19,0.36,0.47,0.07,1,0.52,0.35,0.62,0.26,0.50,0.79,0.12,0.02,0,0.10,0.13,0.00,0.90,0.38,0.15,0.30,0.24,true,9.0,true,2.8,"Atari Classic",16,320.0,192.0,40,24,"atari8"});
+    p({"IBM PC MDA (1981)","1981 — IBM 5151, P39",3,0.15,7500,0.50,0.20,0.40,0.06,1,0.42,0.60,0.58,0.28,0.50,0.88,0.05,0.07,0,0.04,0.06,0.00,0.04,0.00,0.05,0.10,0.30,true,8.0,false,2.5,"PxPlus IBM MDA",16,720.0,350.0,80,25,"mono"});
+    p({"IBM PC CGA (1981)","1981 — CGA op composite/TV",2,0.20,7000,0.15,0.25,0.38,0.06,1,0.45,0.50,0.55,0.22,0.52,0.83,0.08,0.10,0,0.06,0.08,0.00,0.90,0.45,0.10,0.15,0.22,true,8.0,true,2.5,"PxPlus IBM CGA",16,320.0,200.0,40,25,"cga"});
+    p({"IBM PC EGA (1984)","1984 — IBM 5154, 16 kleuren",2,0.14,7200,0.12,0.20,0.32,0.05,1,0.38,0.58,0.50,0.18,0.54,0.84,0.06,0.08,0,0.04,0.06,0.00,0.90,0.38,0.08,0.12,0.18,true,8.0,true,2.5,"PxPlus IBM EGA 8x14",14,640.0,350.0,80,25,"cga"});
+    p({"Tandy 1000 (1984)","1984 — Verbeterde CGA",2,0.22,6800,0.15,0.28,0.42,0.07,1,0.48,0.42,0.58,0.22,0.50,0.80,0.10,0.02,0,0.08,0.10,0.00,0.90,0.48,0.12,0.20,0.24,true,9.0,true,2.8,"Px437 Tandy1K-I 200L",16,320.0,200.0,40,25,"cga"});
+    p({"IBM PS/2 VGA (1987)","1987 — De DOS-standaard",2,0.10,7400,0.10,0.15,0.28,0.04,1,0.32,0.62,0.45,0.15,0.55,0.85,0.05,0.06,0,0.03,0.05,0.00,0.90,0.35,0.07,0.10,0.15,true,7.0,true,2.2,"PxPlus IBM VGA 9x16",16,720.0,400.0,80,25,"cga"});
+    p({"Amiga 500 (1987)","1987 — PAL-TV of 1084S",2,0.15,6800,0.14,0.25,0.38,0.06,1,0.48,0.44,0.55,0.20,0.52,0.81,0.08,0.10,0,0.05,0.08,0.00,0.90,0.42,0.10,0.18,0.18,true,8.0,true,2.5,"Topaz a500a1000a2000",14,320.0,256.0,0,0,"wb13"});
+    p({"Amiga WorkBench 2 (1990)","1990 — 1084S RGB-monitor",2,0.10,7000,0.10,0.20,0.30,0.05,1,0.40,0.52,0.48,0.16,0.56,0.83,0.06,0.08,0,0.04,0.06,0.00,0.90,0.38,0.08,0.14,0.14,true,7.0,true,2.2,"Topaz a600a1200a400",14,640.0,256.0,0,0,"wb2"});
+    p({"Apple Macintosh 128K (1984)","1984 — 9-inch b/w CRT",2,0.35,9000,0.08,0.15,0.55,0.12,2,0.20,0.70,0.35,0.10,0.60,0.92,0.03,0.04,0,0.02,0.04,0.00,0.00,0.00,0.04,0.05,0.40,true,6.0,false,2.0,"DejaVu Sans Mono",12,512.0,342.0,0,0,"paper"});
     // Font: DejaVu Sans Mono — "Lucida Console" is a Microsoft font with no
     // free-redistributable source, so install-fonts.sh never had anything to
     // fetch for it; DejaVu Sans Mono ships in every distro's base fonts package
     // (already present on both test machines) and reads the same UNIX-console way.
-    p({"NeXT Station (1990)","1990 — 1120×832 grijs",2,0.08,8000,0.06,0.08,0.22,0.05,0,0.35,0.50,0.32,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.00,0.00,0.03,0.04,0.12,true,5.0,true,1.8,"DejaVu Sans Mono",13,1120.0,832.0});
-    p({"SVGA Multisync (1992)","1992 — 800×600, shadow mask",2,0.06,7600,0.06,0.10,0.20,0.04,1,0.22,0.72,0.35,0.10,0.60,0.87,0.03,0.04,0,0.02,0.04,0.00,0.70,0.30,0.05,0.06,0.10,true,6.0,true,2.0,"Terminus",14,800.0,600.0});
-    p({"Sony Trinitron (1997)","1997 — Aperture-grille beeldbuis",2,0.05,7800,0.05,0.04,0.18,0.04,3,0.18,0.78,0.30,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.80,0.28,0.04,0.04,0.08,true,5.0,true,1.8,"Terminus",14,1024.0,768.0});
-    p({"Teletext / Ceefax (1974)","1974 — PAL-TV, 8 kleuren",2,0.30,6200,0.20,0.40,0.52,0.09,1,0.62,0.28,0.70,0.30,0.46,0.76,0.20,0.24,2,0.18,0.20,0.12,0.80,0.55,0.22,0.40,0.28,true,12.0,true,3.5,"Bedstead",16,480.0,250.0});
-    p({"Minimaal (laag GPU)","— Subtiel, min. belasting",1,0.05,7000,0.10,0.10,0.15,0.04,1,0.20,0.50,0.20,0.08,0.55,0.85,0.00,0.00,0,0.00,0.00,0.00,0.20,0.20,0.00,0.00,0.10,false,8.0,false,2.5,"Terminus",14,0.0,0.0});
+    p({"NeXT Station (1990)","1990 — 1120×832 grijs",2,0.08,8000,0.06,0.08,0.22,0.05,0,0.35,0.50,0.32,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.00,0.00,0.03,0.04,0.12,true,5.0,false,1.8,"DejaVu Sans Mono",13,1120.0,832.0,0,0,"paper"});
+    p({"SVGA Multisync (1992)","1992 — 800×600, shadow mask",2,0.06,7600,0.06,0.10,0.20,0.04,1,0.22,0.72,0.35,0.10,0.60,0.87,0.03,0.04,0,0.02,0.04,0.00,0.90,0.30,0.05,0.06,0.10,true,6.0,true,2.0,"Terminus",14,800.0,600.0,0,0,"cga"});
+    p({"Sony Trinitron (1997)","1997 — Aperture-grille beeldbuis",2,0.05,7800,0.05,0.04,0.18,0.04,3,0.18,0.78,0.30,0.08,0.62,0.88,0.02,0.03,0,0.02,0.03,0.00,0.90,0.28,0.04,0.04,0.08,true,5.0,true,1.8,"Terminus",14,1024.0,768.0,0,0,"cga"});
+    p({"Teletext / Ceefax (1974)","1974 — PAL-TV, 8 kleuren",2,0.30,6200,0.20,0.40,0.52,0.09,1,0.62,0.28,0.70,0.30,0.46,0.76,0.20,0.1,2,0.18,0.20,0.00,0.90,0.55,0.22,0.40,0.28,true,12.0,true,3.5,"Bedstead",16,480.0,240.0,40,24,"teletext"});
+    p({"Minimaal (laag GPU)","— Subtiel, min. belasting",1,0.05,7000,0.10,0.10,0.15,0.04,1,0.20,0.50,0.20,0.08,0.55,0.85,0.00,0.00,0,0.00,0.00,0.00,0.20,0.20,0.00,0.00,0.10,false,8.0,false,2.5,"Terminus",14,0.0,0.0,0,0});
 
     // ── Nieuwe presets: echte hardware, geverifieerde fonts ──────────────────
     //
@@ -145,7 +176,7 @@ void RetroTermKCM::buildPresets()
     p({"Commodore PET 2001 (1977)","1977 — Eerste Commodore, ingebouwde 9\" wit-fosfor CRT",
        2,0.35,8500,0.12, 0.40,0.55,0.10, 1,0.52,0.58,
        0.65,0.18,0.55,0.90, 0.06,0.08,0,0.04,0.06,0.00,
-       0.00,0.00,0.05,0.12,0.38, true,11.0,true,3.0, "Pet Me 2Y",16,320.0,200.0});
+       0.00,0.00,0.05,0.12,0.38, true,11.0,false,3.0, "Pet Me",16,320.0,200.0,40,25,"mono"});
 
     // TRS-80 Model I (1977)
     // Hardware: discrete TTL-videoschakeling, composite naar gewone TV. Niet de
@@ -158,8 +189,8 @@ void RetroTermKCM::buildPresets()
     //        https://www.kreativekorp.com/swdownload/fonts/retro/amtreasure.zip (gratis)
     p({"TRS-80 Model I (1977)","1977 — Tandy/RadioShack, composite naar TV, uppercase-only",
        2,0.28,6800,0.14, 0.35,0.48,0.08, 1,0.52,0.35,
-       0.58,0.18,0.50,0.80, 0.14,0.15,1,0.10,0.12,0.00,
-       0.10,0.12,0.14,0.28,0.22, true,9.0,true,2.8, "Another Mans Treasure MIA Raw",16,384.0,192.0});
+       0.58,0.18,0.50,0.80, 0.14,0.02,0,0.10,0.12,0.00,
+       0.00,0.00,0.14,0.28,0.22, true,9.0,false,2.8, "Another Mans Treasure MIA Raw",16,384.0,192.0,64,16,"mono"});
 
     // TRS-80 Color Computer (1980)
     // Hardware: MC6847, composite naar TV, later Tandy CM-2 monitor
@@ -170,8 +201,8 @@ void RetroTermKCM::buildPresets()
     //        https://www.kreativekorp.com/swdownload/fonts/retro/hotcoco.zip (gratis)
     p({"TRS-80 Color Computer (1980)","1980 — CoCo, MC6847, composite kleur-TV",
        2,0.25,6500,0.16, 0.35,0.46,0.08, 1,0.50,0.32,
-       0.60,0.22,0.48,0.78, 0.13,0.16,1,0.11,0.13,0.00,
-       0.60,0.45,0.15,0.30,0.22, true,9.0,true,2.8, "Hot CoCo",16,256.0,192.0});
+       0.60,0.22,0.48,0.78, 0.13,0.02,0,0.11,0.13,0.00,
+       0.90,0.45,0.15,0.30,0.22, true,9.0,true,2.8, "Hot CoCo",16,256.0,192.0,32,16,"coco"});
 
     // Kaypro II (1982)
     // Hardware: ingebouwde 9" green-phosphor CRT, Z80, CP/M
@@ -185,7 +216,7 @@ void RetroTermKCM::buildPresets()
     p({"Kaypro II (1982)","1982 — Draagbare CP/M, ingebouwde 9\" groene CRT",
        0,0.14,8100,0.16, 0.42,0.52,0.07, 1,0.44,0.60,
        0.58,0.22,0.50,0.86, 0.05,0.07,0,0.04,0.06,0.00,
-       0.00,0.00,0.04,0.08,0.25, true,9.0,true,2.8, "Px437 Kaypro2K G",16,640.0,192.0});
+       0.00,0.00,0.04,0.08,0.25, true,9.0,false,2.8, "Px437 Kaypro2K G",16,640.0,192.0,80,24,"mono"});
 
     // Compaq Portable (1982)
     // Hardware: ingebouwde 9" groene CRT, eerste IBM-compatibele draagbare
@@ -201,7 +232,7 @@ void RetroTermKCM::buildPresets()
     p({"Compaq Portable (1982)","1982 — Eerste IBM-compatibele draagbare, 9\" groen",
        0,0.12,7600,0.20, 0.40,0.50,0.08, 1,0.42,0.55,
        0.60,0.25,0.52,0.88, 0.06,0.08,0,0.04,0.06,0.00,
-       0.00,0.00,0.05,0.10,0.28, true,9.0,true,2.8, "Px437 Compaq Port3",16,640.0,200.0});
+       0.00,0.00,0.05,0.10,0.28, true,9.0,false,2.8, "Px437 Compaq Port3",16,640.0,200.0,80,25,"mono"});
 
     // DEC Rainbow 100 (1982)
     // Hardware: VR201 monitor, 80×24, CP/M en DOS
@@ -218,7 +249,7 @@ void RetroTermKCM::buildPresets()
     p({"DEC Rainbow 100 (1982)","1982 — DEC's CP/M+DOS hybride, VR201 groene monitor",
        0,0.10,8200,0.14, 0.18,0.35,0.05, 1,0.38,0.62,
        0.52,0.18,0.55,0.86, 0.04,0.05,0,0.03,0.04,0.00,
-       0.00,0.00,0.04,0.08,0.18, true,8.0,true,2.5, "PxPlus Rainbow100 re.40",16,800.0,240.0});
+       0.00,0.00,0.04,0.08,0.18, true,8.0,false,2.5, "PxPlus Rainbow100 re.40",16,800.0,240.0,80,24,"mono"});
 
     // TeleVideo 925 (1982)
     // Hardware: 12" groene CRT, 80×24, UNIX/CP/M kantoor-terminal
@@ -235,7 +266,7 @@ void RetroTermKCM::buildPresets()
     p({"TeleVideo TVI-925 (1982)","1982 — Populaire UNIX-terminal, 12\" P31 groen",
        0,0.07,8300,0.12, 0.20,0.34,0.04, 1,0.36,0.66,
        0.50,0.16,0.56,0.87, 0.04,0.05,0,0.03,0.04,0.00,
-       0.00,0.00,0.04,0.07,0.18, true,8.0,true,2.2, "Px437 Wyse700b",16,0.0,0.0});
+       0.00,0.00,0.04,0.07,0.18, true,8.0,false,2.2, "Px437 Wyse700b",16,0.0,0.0,80,24,"mono"});
 
     // Apple Lisa (1983)
     // Hardware: 12" monochrome CRT, 720×364, eerste GUI-computer van Apple.
@@ -250,7 +281,7 @@ void RetroTermKCM::buildPresets()
     p({"Apple Lisa (1983)","1983 — Eerste Apple GUI-computer, 12\" b/w CRT",
        2,0.10,8800,0.06, 0.14,0.38,0.08, 0,0.15,0.70,
        0.38,0.08,0.62,0.91, 0.02,0.03,0,0.02,0.03,0.00,
-       0.00,0.00,0.03,0.04,0.30, true,6.0,true,2.0, "LisaTerminal Paper Raw",13,720.0,364.0});
+       0.00,0.00,0.03,0.04,0.30, true,6.0,false,2.0, "LisaTerminal Paper Raw",13,720.0,364.0,0,0,"paper"});
 
     // Amstrad PC1512 (1986)
     // Hardware: geleverd met PC-CD (kleur) of PC-MD (mono) monitor. Let op: de
@@ -264,7 +295,7 @@ void RetroTermKCM::buildPresets()
     p({"Amstrad PC1512 (1986)","1986 — Goedkope Britse IBM-kloon, PC-CD kleurenmonitor",
        2,0.16,6800,0.12, 0.22,0.36,0.06, 1,0.42,0.48,
        0.52,0.20,0.52,0.82, 0.07,0.09,0,0.06,0.08,0.00,
-       0.70,0.42,0.08,0.14,0.18, true,8.0,true,2.5, "PxPlus Amstrad PC-2y",16,640.0,200.0});
+       0.90,0.42,0.08,0.14,0.18, true,8.0,true,2.5, "PxPlus Amstrad PC",16,640.0,200.0,80,25,"cga"});
 
     // Atari ST — SM124 mono (1985)
     // Hardware: SM124 monochroom monitor, 640×400, P4 wit fosfor
@@ -277,7 +308,7 @@ void RetroTermKCM::buildPresets()
     p({"Atari ST SM124 (1985)","1985 — Atari ST mono, SM124 wit fosfor, 640×400",
        2,0.08,8600,0.06, 0.08,0.28,0.05, 1,0.18,0.75,
        0.35,0.08,0.60,0.90, 0.02,0.03,0,0.02,0.03,0.00,
-       0.00,0.00,0.03,0.04,0.15, true,6.0,true,1.8, "Project Jason Small",14,640.0,400.0});
+       0.00,0.00,0.03,0.04,0.15, true,6.0,false,1.8, "Project Jason Small",14,640.0,400.0,80,25,"paper"});
 
     // NEC APC III (1984)
     // Hardware: Japanse professionele PC, 14" monochrome monitor, 640×400
@@ -291,7 +322,7 @@ void RetroTermKCM::buildPresets()
     p({"NEC APC III (1984)","1984 — Japanse professionele PC, 14\" groen, 640×400",
        0,0.08,8400,0.10, 0.16,0.30,0.04, 1,0.32,0.68,
        0.46,0.14,0.58,0.88, 0.03,0.04,0,0.02,0.04,0.00,
-       0.00,0.00,0.04,0.06,0.14, true,7.0,true,2.0, "Px437 NEC APC3 8x16",16,640.0,400.0});
+       0.00,0.00,0.04,0.06,0.14, true,7.0,false,2.0, "Px437 NEC APC3 8x16",16,640.0,400.0,80,25,"mono"});
 
     // HP 150 Touchscreen (1983)
     // Hardware: ingebouwde 9" CRT, eerste touchscreen-PC (infraroodraster)
@@ -306,7 +337,7 @@ void RetroTermKCM::buildPresets()
     p({"HP 150 Touchscreen (1983)","1983 — HP's eerste touchscreen-PC, 9\" b/w CRT",
        2,0.08,8700,0.07, 0.22,0.40,0.06, 1,0.40,0.62,
        0.48,0.14,0.60,0.89, 0.03,0.04,0,0.02,0.03,0.00,
-       0.00,0.00,0.04,0.06,0.24, true,7.0,true,2.0, "PxPlus HP 150 re.",16,512.0,390.0});
+       0.00,0.00,0.04,0.06,0.24, true,7.0,false,2.0, "PxPlus HP 150 re.",16,512.0,390.0,80,27,"mono"});
 
     // Apple IIgs (1986)
     // Hardware: Apple RGB monitor A2M6014, shadow mask, 320×200 of 640×200
@@ -319,7 +350,7 @@ void RetroTermKCM::buildPresets()
     p({"Apple IIgs (1986)","1986 — Apple IIgs, RGB-monitor, 4096 kleuren",
        2,0.08,7400,0.08, 0.18,0.32,0.05, 1,0.36,0.55,
        0.48,0.14,0.56,0.85, 0.04,0.05,0,0.03,0.05,0.00,
-       0.75,0.45,0.07,0.10,0.14, true,7.0,true,2.0, "Shaston 320",14,320.0,200.0});
+       0.90,0.45,0.07,0.10,0.14, true,7.0,true,2.0, "Print Char 21",14,280.0,192.0,40,24,"iigs"});
 
     // Sharp MZ-700 (1982)
     // Hardware: géén ingebouwde monitor — dat was juist dé verandering ten
@@ -332,8 +363,8 @@ void RetroTermKCM::buildPresets()
     //        https://www.kreativekorp.com/swdownload/fonts/retro/mizuno.zip (gratis)
     p({"Sharp MZ-700 (1982)","1982 — Japanse Sharp, externe TV/monitor",
        2,0.16,6600,0.12, 0.36,0.44,0.07, 1,0.46,0.44,
-       0.54,0.18,0.52,0.83, 0.09,0.10,1,0.06,0.08,0.00,
-       0.45,0.32,0.10,0.16,0.22, true,8.0,true,2.5, "Mizuno",14,320.0,200.0});
+       0.54,0.18,0.52,0.83, 0.09,0.02,0,0.06,0.08,0.00,
+       0.90,0.32,0.10,0.16,0.22, true,8.0,true,2.5, "Mizuno",14,320.0,200.0,40,25,"mz700"});
 
     // Mattel Aquarius (1983)
     // Hardware: composite naar TV, Zilog Z80, Mattel's mislukte home computer
@@ -345,8 +376,8 @@ void RetroTermKCM::buildPresets()
     //        https://www.kreativekorp.com/swdownload/fonts/retro/aq2.zip (gratis)
     p({"Mattel Aquarius (1983)","1983 — Mattel's mislukte home computer, composite-TV",
        2,0.22,6400,0.18, 0.36,0.48,0.08, 1,0.54,0.30,
-       0.62,0.22,0.48,0.78, 0.18,0.18,1,0.14,0.14,0.00,
-       0.55,0.38,0.16,0.35,0.24, true,10.0,true,3.0, "Antiquarius",16,320.0,192.0});
+       0.62,0.22,0.48,0.78, 0.18,0.02,0,0.14,0.14,0.00,
+       0.90,0.38,0.16,0.35,0.24, true,10.0,true,3.0, "Antiquarius",16,320.0,192.0,40,24,"aquarius"});
 
     // Commodore VIC-20 (1981)
     // Hardware: MOS 6560/6561 (VIC), composite naar TV
@@ -355,8 +386,8 @@ void RetroTermKCM::buildPresets()
     // 8x8 px); missing from the original entry, which left pixel scaling off.
     p({"Commodore VIC-20 (1981)","1981 — First color Commodore home computer",
        2,0.28,6000,0.20, 0.40,0.52,0.09, 1,0.58,0.30,
-       0.68,0.30,0.46,0.75, 0.16,0.20,1,0.15,0.16,0.00,
-       0.50,0.42,0.20,0.38,0.22, true,10.0,true,3.0, "C64 Pro Mono",16,176.0,184.0});
+       0.68,0.30,0.46,0.75, 0.16,0.02,0,0.15,0.16,0.00,
+       0.90,0.42,0.20,0.38,0.22, true,10.0,true,3.0, "Pet Me",16,176.0,184.0,22,23,"vic20"});
 
     // MSX (1983)
     // Hardware: TMS9918 video, composite naar TV
@@ -366,8 +397,8 @@ void RetroTermKCM::buildPresets()
     // original entry, which left pixel scaling off.
     p({"MSX (1983)","1983 — Japanese home computer standard (Sony, Philips, Panasonic)",
        2,0.24,6500,0.18, 0.35,0.46,0.07, 1,0.52,0.36,
-       0.62,0.24,0.50,0.79, 0.12,0.14,1,0.10,0.12,0.00,
-       0.58,0.42,0.15,0.28,0.22, true,9.0,true,2.8, "VT323",14,256.0,192.0});
+       0.62,0.24,0.50,0.79, 0.12,0.02,0,0.10,0.12,0.00,
+       0.90,0.42,0.15,0.28,0.22, true,9.0,true,2.8, "VT323",14,256.0,192.0,40,24,"msx"});
 
     // Sun-3 Workstation (1985)
     // Hardware: bwtwo monochrome framebuffer, 19" monochrome CRT. Niet "GX":
@@ -379,7 +410,7 @@ void RetroTermKCM::buildPresets()
     p({"Sun-3 Workstation (1985)","1985 — UNIX workstation, bwtwo framebuffer",
        2,0.12,8200,0.08, 0.10,0.25,0.04, 1,0.28,0.68,
        0.40,0.12,0.58,0.86, 0.03,0.04,0,0.02,0.04,0.00,
-       0.00,0.00,0.04,0.06,0.12, true,6.0,true,2.0, "DejaVu Sans Mono",14,1152.0,900.0});
+       0.00,0.00,0.04,0.06,0.12, true,6.0,false,2.0, "DejaVu Sans Mono",14,1152.0,900.0,0,0,"paper"});
 
 }
 
@@ -392,6 +423,269 @@ QGroupBox *RetroTermKCM::makeGroup(const QString &title, QFormLayout *&fl)
     fl = new QFormLayout(gb);
     fl->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     return gb;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PresetPreview — font en palet meteen zichtbaar
+// ══════════════════════════════════════════════════════════════════════════════
+PresetPreview::PresetPreview(QWidget *parent) : QWidget(parent)
+{
+    setMinimumHeight(112);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+}
+
+QSize PresetPreview::sizeHint() const { return QSize(420, 112); }
+
+void PresetPreview::setPreset(const QString &family, int pixelSize, int pointSize,
+                              const QColor &bg, const QColor &fg,
+                              const QList<QColor> &ansi)
+{
+    m_family = family; m_pixelSize = pixelSize; m_pointSize = pointSize;
+    m_bg = bg; m_fg = fg; m_ansi = ansi;
+    update();
+}
+
+void PresetPreview::paintEvent(QPaintEvent *)
+{
+    QPainter pnt(this);
+    pnt.fillRect(rect(), m_bg);
+
+    QFont f = m_family.isEmpty() ? font() : QFont(m_family);
+    // Pixel fonts are drawn as exact blocks; antialiasing them here would
+    // misrepresent what the terminal will actually show once the profile is
+    // written, which is the whole point of this preview.
+    f.setStyleStrategy(QFont::NoAntialias);
+    if (!m_family.isEmpty()) {
+        // Cap the preview size: a preset's real size can be 32px or more at
+        // high integer zoom, which would show two words and nothing else.
+        if (m_pixelSize > 0) f.setPixelSize(qBound(12, m_pixelSize, 20));
+        else                 f.setPointSize(qBound(9, m_pointSize, 16));
+    }
+    pnt.setFont(f);
+
+    const QFontMetrics fm(f);
+    const int lh = fm.height();
+    const int x  = 8;
+    int y = 6 + fm.ascent();
+
+    auto col = [&](int i) {
+        return (i >= 0 && i < m_ansi.size()) ? m_ansi.at(i) : m_fg;
+    };
+    auto line = [&](std::initializer_list<std::pair<QColor, QString>> parts) {
+        int cx = x;
+        for (const auto &p : parts) {
+            pnt.setPen(p.first);
+            pnt.drawText(cx, y, p.second);
+            cx += fm.horizontalAdvance(p.second);
+        }
+        y += lh;
+    };
+
+    // Deliberately mundane content: a prompt, a listing with a few palette
+    // colours, and a plain sentence. It shows the typeface and the palette in
+    // the shapes a terminal actually produces, rather than a pangram.
+    line({{col(10), QStringLiteral("user@host")}, {m_fg, QStringLiteral(":~$ ")},
+          {m_fg, QStringLiteral("ls")}});
+    line({{col(12), QStringLiteral("Documents  ")}, {col(10), QStringLiteral("run.sh  ")},
+          {col(9),  QStringLiteral("core.log  ")}, {m_fg, QStringLiteral("notes.txt")}});
+    line({{m_fg, QStringLiteral("The quick brown fox 0123456789")}});
+    line({{col(10), QStringLiteral("user@host")}, {m_fg, QStringLiteral(":~$ ")},
+          {m_fg, QStringLiteral("_")}});
+}
+
+// ── Konsole colorschemes per preset ───────────────────────────────────────────
+// Colors are a terminal setting, like the font: the shader tints monochrome
+// phosphors, but a color machine's palette must come from Konsole's own
+// colorscheme. These are written as user files (~/.local/share/konsole/
+// Phosphor <id>.colorscheme) on demand — Konsole colorschemes are plain INI,
+// no installation step exists or is needed.
+//
+// Sourcing rule (same bar as the presets themselves): a palette here must be
+// traceable to documentation — chip datasheets, the Pepto/colodore C64
+// measurements, the RGBI standard, machine manuals. "mono" is the exception:
+// it's not a historical claim but a normalization, forcing white-on-black so
+// the shader's phosphor tint starts from a neutral source instead of from
+// whatever colorful scheme the user's profile happened to have.
+struct SchemeColor { int r, g, b; };
+struct SchemeDef {
+    const char *id;          // preset refers to this
+    const char *name;        // file/display name: "Phosphor <name>"
+    SchemeColor bg, fg;
+    SchemeColor ansi[16];    // ANSI 0-7 normal + 8-15 intense
+};
+// Palettes fact-checked per machine (VICE colodore .vpl files for the
+// Commodore machines, the CGA RGBI standard, Apple IIgs Technote #63, the
+// TMS9918 table, MAME's MC6847/GTIA tables, machine manuals for boot colors —
+// full source list in the commit that introduced each entry). ANSI-slot
+// mapping onto a machine palette is a judgment call by hue; the boot fg/bg
+// pairs are the sourced facts. Machines whose text mode was effectively
+// two-tone (Atari GRAPHICS 0, Workbench's four colors) map most ANSI slots
+// onto those same few colors on purpose: that IS what the machine showed.
+static const SchemeDef SCHEME_DEFS[] = {
+    // Normalization, not history: white on black so the shader's phosphor
+    // tint starts from a neutral source. ANSI stays CGA for TUI usability.
+    {"mono", "Mono",
+     {0,0,0}, {255,255,255},
+     {{0,0,0},{170,0,0},{0,170,0},{170,85,0},{0,0,170},{170,0,170},{0,170,170},{170,170,170},
+      {85,85,85},{255,85,85},{85,255,85},{255,255,85},{85,85,255},{255,85,255},{85,255,255},{255,255,255}}},
+    // Black-on-white GUI machines (Mac 128K, Lisa, Atari ST mono, NeXT, Sun-3
+    // bwtwo — all verified as dark-on-light, several were assumed wrong before).
+    {"paper", "Paper",
+     {255,255,255}, {0,0,0},
+     {{0,0,0},{170,0,0},{0,170,0},{170,85,0},{0,0,170},{170,0,170},{0,170,170},{170,170,170},
+      {85,85,85},{255,85,85},{85,255,85},{255,255,85},{85,85,255},{255,85,255},{85,255,255},{255,255,255}}},
+    // IBM CGA/EGA/VGA text mode: light grey on black + the RGBI sixteen
+    // (https://en.wikipedia.org/wiki/Color_Graphics_Adapter#Color_palette).
+    {"cga", "DOS CGA",
+     {0,0,0}, {170,170,170},
+     {{0,0,0},{170,0,0},{0,170,0},{170,85,0},{0,0,170},{170,0,170},{0,170,170},{170,170,170},
+      {85,85,85},{255,85,85},{85,255,85},{255,255,85},{85,85,255},{255,85,255},{85,255,255},{255,255,255}}},
+    // Commodore 64 boot: light blue on blue (colors 14/6). Colodore palette
+    // as shipped in VICE (data/C64/colodore.vpl).
+    {"c64", "Commodore 64",
+     {39,36,196}, {104,100,255},
+     {{0,0,0},{150,40,46},{65,185,54},{159,72,21},{39,36,196},{159,45,173},{91,214,206},{174,174,174},
+      {71,71,71},{218,95,102},{145,255,132},{239,243,71},{104,100,255},{159,45,173},{91,214,206},{255,255,255}}},
+    // VIC-20 boot: blue text on white, cyan border — register 36879 powers up
+    // at 27 (VIC-20 Programmer's Reference). Colodore VIC palette (VICE).
+    {"vic20", "Commodore VIC-20",
+     {255,255,255}, {37,35,144},
+     {{0,0,0},{109,35,39},{126,218,117},{164,100,59},{37,35,144},{142,60,151},{160,254,248},{255,255,255},
+      {0,0,0},{242,167,171},{215,255,206},{255,255,134},{157,154,255},{255,180,255},{219,255,255},{255,255,255}}},
+    // ZX Spectrum boot: black ink on white paper (Sinclair BASIC ch.16).
+    // Conventional 0xD7/0xFF approximation of the PAL colors.
+    {"zx", "ZX Spectrum",
+     {215,215,215}, {0,0,0},
+     {{0,0,0},{215,0,0},{0,215,0},{215,215,0},{0,0,215},{215,0,215},{0,215,215},{215,215,215},
+      {0,0,0},{255,0,0},{0,255,0},{255,255,0},{0,0,255},{255,0,255},{0,255,255},{255,255,255}}},
+    // Teletext/BBC MODE 7: white on black, the saturated 3-bit RGB eight
+    // (SAA5050 — Level 1 teletext can't even set black as a foreground).
+    {"teletext", "Teletext",
+     {0,0,0}, {255,255,255},
+     {{0,0,0},{255,0,0},{0,255,0},{255,255,0},{0,0,255},{255,0,255},{0,255,255},{255,255,255},
+      {0,0,0},{255,0,0},{0,255,0},{255,255,0},{0,0,255},{255,0,255},{0,255,255},{255,255,255}}},
+    // Atari 400/800 GRAPHICS 0: light blue text on blue (registers 709/710
+    // power-on defaults $CA/$94, Mapping the Atari app.5; RGB via MAME's
+    // GTIA palette). Two-tone mode — ANSI slots deliberately collapse to it.
+    {"atari8", "Atari 8-bit",
+     {17,81,155}, {119,183,255},
+     {{17,81,155},{119,183,255},{119,183,255},{119,183,255},{119,183,255},{119,183,255},{119,183,255},{119,183,255},
+      {17,81,155},{119,183,255},{119,183,255},{119,183,255},{119,183,255},{119,183,255},{119,183,255},{255,255,255}}},
+    // Apple II 40-col text: white on black; lo-res sixteen per Apple IIgs
+    // Technote #63 "Master Color Values" (also used for the IIgs scheme).
+    {"apple2", "Apple II",
+     {0,0,0}, {255,255,255},
+     {{0,0,0},{221,0,51},{0,119,34},{136,85,0},{0,0,153},{221,34,221},{102,170,255},{170,170,170},
+      {85,85,85},{255,102,0},{17,221,0},{255,255,0},{34,34,255},{255,153,136},{68,255,153},{255,255,255}}},
+    // Apple IIgs boot: white on medium blue ($22F), Control Panel defaults.
+    {"iigs", "Apple IIgs",
+     {34,34,255}, {255,255,255},
+     {{0,0,0},{221,0,51},{0,119,34},{136,85,0},{0,0,153},{221,34,221},{102,170,255},{170,170,170},
+      {85,85,85},{255,102,0},{17,221,0},{255,255,0},{34,34,255},{255,153,136},{68,255,153},{255,255,255}}},
+    // MSX boot: COLOR 15,4,7 — white on dark blue (MSX BIOS defaults).
+    // TMS9918 datasheet-derived palette.
+    {"msx", "MSX",
+     {43,45,227}, {255,255,255},
+     {{0,0,0},{189,41,37},{10,173,30},{189,162,43},{43,45,227},{175,50,154},{30,226,239},{178,178,178},
+      {0,0,0},{255,95,76},{52,200,76},{215,180,84},{81,75,251},{175,50,154},{30,226,239},{255,255,255}}},
+    // Sharp MZ-700: white on blue boot (monitor/IPL), 3-bit digital RGB eight.
+    {"mz700", "Sharp MZ-700",
+     {0,0,255}, {255,255,255},
+     {{0,0,0},{255,0,0},{0,255,0},{255,255,0},{0,0,255},{255,0,255},{0,255,255},{255,255,255},
+      {0,0,0},{255,0,0},{0,255,0},{255,255,0},{0,0,255},{255,0,255},{0,255,255},{255,255,255}}},
+    // Mattel Aquarius: black text on light blue-green (default fg 0 / bg 6,
+    // TEA1002-derived community palette).
+    {"aquarius", "Mattel Aquarius",
+     {51,204,204}, {17,17,17},
+     {{17,17,17},{255,17,17},{17,255,17},{255,255,17},{34,34,238},{255,17,255},{51,204,204},{255,255,255},
+      {51,51,51},{187,34,34},{34,221,68},{255,255,119},{68,17,153},{204,34,204},{51,187,187},{204,204,204}}},
+    // Amiga Workbench 1.3: white on blue, the four-color palette
+    // ($05A/$FFF/$002/$F80). Four colors were the whole world.
+    {"wb13", "Amiga Workbench 1.3",
+     {0,85,170}, {255,255,255},
+     {{0,0,34},{255,136,0},{255,255,255},{255,136,0},{0,85,170},{255,136,0},{255,255,255},{255,255,255},
+      {0,0,34},{255,136,0},{255,255,255},{255,136,0},{0,85,170},{255,136,0},{255,255,255},{255,255,255}}},
+    // Amiga Workbench 2.04: black on grey ($AAA/$000/$FFF/$68B).
+    {"wb2", "Amiga Workbench 2",
+     {170,170,170}, {0,0,0},
+     {{0,0,0},{102,136,187},{102,136,187},{102,136,187},{102,136,187},{102,136,187},{102,136,187},{255,255,255},
+      {0,0,0},{102,136,187},{102,136,187},{102,136,187},{102,136,187},{102,136,187},{102,136,187},{255,255,255}}},
+    // TRS-80 Color Computer: MC6847 alphanumeric mode, dark green characters
+    // on a bright green field (RGB from MAME's mc6847 palette) — a color
+    // machine, wrongly assumed monochrome before this audit.
+    {"coco", "TRS-80 CoCo",
+     {48,210,0}, {0,124,0},
+     {{38,48,22},{154,50,54},{0,124,0},{193,229,0},{76,58,180},{200,78,240},{65,175,113},{191,200,173},
+      {38,48,22},{212,127,0},{48,210,0},{193,229,0},{76,58,180},{200,78,240},{65,175,113},{191,200,173}}},
+};
+
+// The integer-zoom render path (see retro.frag's integerZoom uniform) is only
+// honest when the character cell divides the sourced resolution cleanly — a
+// fractional cell means the machine's real grid doesn't map to whole virtual
+// pixels (HP 150 is the documented example) and the exact-reconstruction
+// guarantee doesn't hold. In that case, and for presets with no sourced grid
+// at all, this returns 0 and the preset falls back to the resample path.
+int RetroTermKCM::zoomFor(const PresetValues &p, int minCols, bool authenticSize)
+{
+    if (p.targetCols <= 0 || p.targetRows <= 0
+        || p.targetResX <= 0.0 || p.targetResY <= 0.0)
+        return 0;
+    const int resX = (int)p.targetResX, resY = (int)p.targetResY;
+    if (resX % p.targetCols != 0 || resY % p.targetRows != 0)
+        return 0;
+
+    QSize scr(1920, 1080);
+    if (const QScreen *s = QGuiApplication::primaryScreen())
+        scr = s->availableGeometry().size();
+
+    if (authenticSize) {
+        // Historical dimensions: fit the whole virtual screen on the display.
+        const int k = std::min(scr.width() * 9 / 10 / resX,
+                               scr.height() * 9 / 10 / resY);
+        return std::clamp(k, 1, 8);
+    }
+
+    // Usable dimensions (the default). Integer zoom inherently trades columns
+    // for pixel size: at cell width cw, a window of W pixels holds W/(cw*k)
+    // columns, so every step up in k quarters... thirds... the usable width.
+    // On a 1920px screen with an 8px cell that is ~240 columns at k=1, 120 at
+    // k=2, 80 at k=3, 60 at k=4. Picking k to fill the screen (what this used
+    // to do) therefore lands on a terminal far too narrow for modern shells:
+    // fish prompts, git status and eza listings assume 80+ columns and wrap
+    // into mush below that, which is exactly the breakage this now avoids.
+    //
+    // So: largest k that still leaves minCols columns. Pixel density becomes
+    // as chunky as it can be *without* making the terminal unusable, and the
+    // window keeps whatever size the user gave it — the shader derives the
+    // virtual resolution from the actual content size anyway, so the result
+    // stays pixel-exact, just on a bigger virtual screen than the original
+    // machine had.
+    const int cellW = resX / p.targetCols;
+    const int cellH = resY / p.targetRows;
+    const int kByW = (scr.width()  * 9 / 10) / (cellW * std::max(minCols, 20));
+    // Keep a classic 24-line terminal's worth of height as well.
+    const int kByH = (scr.height() * 9 / 10) / (cellH * 24);
+    return std::clamp(std::min(kByW, kByH), 1, 8);
+}
+
+QWidget *RetroTermKCM::scrollWrap(QWidget *page)
+{
+    auto *scroll = new QScrollArea;
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    // These pages scroll vertically only. Without this, a word-wrapped rich
+    // text label reports a wide preferred width, the scroll area happily
+    // grants it, and the result is a horizontal scrollbar with every
+    // explanation clipped mid-sentence instead of wrapping. Forcing the
+    // horizontal bar off constrains the viewport width, which is exactly the
+    // constraint QLabel needs before it will wrap at all.
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // Floor the width so the dialog opens wide enough for the tables and
+    // button rows to breathe, rather than collapsing to the narrowest thing
+    // that technically fits.
+    scroll->setMinimumWidth(560);
+    scroll->setWidget(page);
+    return scroll;
 }
 
 ParamRow *RetroTermKCM::addParam(QFormLayout *fl, const QString &label,
@@ -541,9 +835,11 @@ void RetroTermKCM::buildUI()
     outerVBox->setSpacing(8);
 
     m_tabs = new QTabWidget;
-    m_tabs->addTab(buildGeneralTab(), i18n("General"));
-    m_tabs->addTab(buildPresetsTab(), i18n("Presets"));
-    m_tabs->addTab(buildFontsTab(),   i18n("Fonts"));
+    m_tabs->addTab(scrollWrap(buildGeneralTab()), i18n("General"));
+    m_tabs->addTab(scrollWrap(buildSetupTab()),   i18n("Setup"));
+    // Effects tab already builds its own internal QScrollArea (needed there
+    // regardless, for the sidebar+stack layout) — wrapping it again would just
+    // nest two scroll areas around the same content for no benefit.
     m_tabs->addTab(buildEffectsTab(), i18n("Effects"));
     outerVBox->addWidget(m_tabs, 1);
 
@@ -563,9 +859,6 @@ void RetroTermKCM::buildUI()
         foot->addWidget(m_livePreview);
 
         m_applyKWin = new QPushButton(i18n("✓  Apply & reload KWin"));
-        m_applyKWin->setToolTip(i18n(
-            "Saves all settings and reloads KWin "
-            "so the effect becomes active immediately."));
         connect(m_applyKWin, &QPushButton::clicked, this, [this] {
             save();
             QDBusInterface kwin(QStringLiteral("org.kde.KWin"),
@@ -574,6 +867,28 @@ void RetroTermKCM::buildUI()
             kwin.call(QStringLiteral("reconfigure"));
             reconfigureKWinEffect();
         });
+
+        // Met live preview aan doet elke wijziging dit al vanzelf, dus de knop
+        // blijft dan technisch werken maar is voor 95% van de sessies overbodig
+        // — zonder enig visueel signaal daarvan zag hij er hetzelfde uit als
+        // wanneer hij wél de enige manier was om iets toe te passen. Nu grijst
+        // hij uit en verandert het label mee, zodat "waarom staat deze knop
+        // hier" zichzelf beantwoordt.
+        auto updateApplyButtonState = [this] {
+            const bool live = m_livePreview->isChecked();
+            m_applyKWin->setEnabled(!live);
+            m_applyKWin->setText(live
+                ? i18n("✓  Applied automatically")
+                : i18n("✓  Apply & reload KWin"));
+            m_applyKWin->setToolTip(live
+                ? i18n("Live preview is on — every change is already saved and "
+                       "applied as you make it. Turn live preview off to apply "
+                       "changes manually with this button instead.")
+                : i18n("Saves all settings and reloads KWin "
+                       "so the effect becomes active immediately."));
+        };
+        connect(m_livePreview, &QCheckBox::toggled, this, updateApplyButtonState);
+        updateApplyButtonState();
 
         foot->addStretch();
         foot->addWidget(m_applyKWin);
@@ -597,11 +912,12 @@ QWidget *RetroTermKCM::buildGeneralTab()
     outerVBox->setSpacing(8);
 
     {
+        // Dit is de belangrijkste keuze op het hele tabblad, maar een gekleurde
+        // stylesheet-rand op de QGroupBox was niet de juiste manier om dat te
+        // laten zien — het botst met Breeze/andere Plasma-thema's en is verder
+        // nergens anders in de UI terug te vinden. Positie (bovenaan, als eerste
+        // ding dat je ziet) doet het werk al; standaard QGroupBox-chrome volstaat.
         auto *mgb = new QGroupBox(i18n("Which windows should receive the effect?"));
-        mgb->setStyleSheet(
-            QStringLiteral("QGroupBox { font-weight:bold; border:2px solid palette(highlight);"
-                           " border-radius:4px; margin-top:8px; padding-top:6px; }"
-                           "QGroupBox::title { subcontrol-origin:margin; left:8px; }"));
         auto *mvbox = new QVBoxLayout(mgb);
         mvbox->setSpacing(8);
 
@@ -701,93 +1017,102 @@ QWidget *RetroTermKCM::buildGeneralTab()
     return page;
 }
 
-// ── Tabblad: Presets ──────────────────────────────────────────────────────────
-QWidget *RetroTermKCM::buildPresetsTab()
+// ── Tabblad: Setup ────────────────────────────────────────────────────────────
+// Preset, font, and screen resolution used to be three separate tabs. They're
+// really one decision made in three parts: pick an era, get its font and
+// pixel size along with it. Splitting that across tabs meant picking a
+// preset on one tab, then hunting across two more tabs to see (and act on)
+// what it had just set — reworked into one tab so the whole "what machine am
+// I simulating" choice reads top to bottom in one place. Effects (how it
+// looks — bloom, scanlines, noise, ...) stays separate: that's a distinct,
+// much larger decision space, and now has its own sidebar navigation.
+QWidget *RetroTermKCM::buildSetupTab()
 {
     auto *page      = new QWidget;
     auto *outerVBox = new QVBoxLayout(page);
     outerVBox->setSpacing(8);
 
-    {
-        auto *pgb = new QGroupBox(i18n("Historical preset"));
-        auto *pfl = new QFormLayout(pgb);
-
-        m_presetCombo = new QComboBox;
-        m_presetCombo->addItem(i18n("— Choose a preset —"));
-        for (const auto &pv : m_presets)
-            m_presetCombo->addItem(pv.name);
-
-        m_applyPreset = new QPushButton(i18n("Load preset"));
-        m_applyPreset->setEnabled(false);
-
-        pfl->addRow(i18n("Preset:"), m_presetCombo);
-
-        // Shows the preset's recommended font and target resolution the moment it's
-        // picked — before "Load preset" is even clicked — since neither is something
-        // this effect can set for you: the font lives in the terminal emulator's own
-        // profile, entirely outside what a KWin effect can reach.
-        m_presetInfo = new QLabel;
-        m_presetInfo->setTextFormat(Qt::RichText);
-        m_presetInfo->setWordWrap(true);
-        pfl->addRow(QString(), m_presetInfo);
-
-        auto *btnRow = new QHBoxLayout;
-        btnRow->addWidget(m_applyPreset);
-        btnRow->addStretch();
-        pfl->addRow(QString(), btnRow);
-
-        connect(m_presetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this](int idx) {
-            m_applyPreset->setEnabled(idx > 0);
-            updatePresetInfo(idx > 0 ? m_presets.at(idx - 1) : PresetValues{});
-        });
-        connect(m_applyPreset, &QPushButton::clicked, this, [this] {
-            const int idx = m_presetCombo->currentIndex();
-            if (idx > 0) applyPreset(m_presets.at(idx - 1));
-        });
-
-        outerVBox->addWidget(pgb);
-    }
-
+    outerVBox->addWidget(buildPresetSection());
+    outerVBox->addWidget(buildFontSection());
+    outerVBox->addWidget(buildScreenSection());
     outerVBox->addStretch();
+
     return page;
 }
 
-// ── Tabblad: Fonts ────────────────────────────────────────────────────────────
-// Dit tabblad bestaat omdat een KWin-effect het lettertype van een terminal
+// ── Setup-onderdeel: preset ───────────────────────────────────────────────────
+QGroupBox *RetroTermKCM::buildPresetSection()
+{
+    auto *pgb = new QGroupBox(i18n("Historical preset"));
+    auto *pfl = new QFormLayout(pgb);
+
+    m_presetCombo = new QComboBox;
+    m_presetCombo->addItem(i18n("— Choose a preset —"));
+    for (const auto &pv : m_presets)
+        m_presetCombo->addItem(pv.name);
+
+    pfl->addRow(i18n("Preset:"), m_presetCombo);
+
+    // Live voorbeeld: font en palet meteen te zien. Zonder dit is een preset
+    // pas zichtbaar nadat er een nieuwe Konsole-sessie gestart is, en dat is
+    // precies de omweg die dit hele scherm probeert weg te nemen.
+    m_preview = new PresetPreview;
+    pfl->addRow(i18n("Preview:"), m_preview);
+
+    m_presetInfo = new QLabel;
+    m_presetInfo->setTextFormat(Qt::RichText);
+    m_presetInfo->setWordWrap(true);
+    pfl->addRow(QString(), m_presetInfo);
+
+    // Kiezen is laden. Er was een aparte "Load preset"-knop, maar die vroeg om
+    // een tweede handeling voor iets wat de gebruiker met de keuze zelf al
+    // bedoelde — en maakte het bovendien makkelijk te denken dat er niets
+    // gebeurde. Het effect verandert nu direct mee via live preview; het
+    // Konsole-profiel wordt pas bij OK/Apply weggeschreven, zodat Cancel
+    // werkelijk niets achterlaat.
+    connect(m_presetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int idx) {
+        if (idx > 0) applyPreset(m_presets.at(idx - 1));
+        else         updatePresetInfo(PresetValues{});
+    });
+
+    return pgb;
+}
+
+// Dit onderdeel bestaat omdat een KWin-effect het lettertype van een terminal
 // principieel niet kán zetten: KWin krijgt het venster pas te zien nadat de
 // terminal de glyphs al gerasterd heeft, en verwerkt alleen die kant-en-klare
 // pixels na. Het font is en blijft een instelling van de terminal zelf. De enige
 // eerlijke manier om een preset-font toch te laten werken, is het in het profiel
-// van die terminal schrijven — wat dit tabblad voor Konsole doet.
-QWidget *RetroTermKCM::buildFontsTab()
+// van die terminal schrijven — wat deze sectie voor Konsole doet.
+QGroupBox *RetroTermKCM::buildFontSection()
 {
-    auto *page = new QWidget;
-    auto *vb   = new QVBoxLayout(page);
-    vb->setSpacing(10);
+    QFormLayout *fl = nullptr;
+    auto *gb = makeGroup(i18n("Font"), fl);
 
     {
+        // Explanation lives as the group's first row rather than a separate
+        // label above it — this section moved into the combined Setup tab,
+        // where a floating label before a GroupBox reads as detached from it.
+        // Short on purpose. This started as five paragraphs explaining the
+        // architecture, which is the wrong place for it twice over: a settings
+        // page is not documentation, and a long wrapped label inside a
+        // QFormLayout inside a QScrollArea reports a wide preferred width and
+        // ends up clipped mid-sentence rather than wrapping. The reasoning now
+        // lives in the tooltips, the code comments and fonts/README.md; what
+        // stays here is only the part a user must know at the moment they
+        // press the button.
         auto *expl = new QLabel(i18n(
-            "<p>A KWin effect post-processes pixels that the terminal has "
-            "<i>already drawn</i>, so it cannot pick the font those characters "
-            "were rendered with — the font belongs to the terminal emulator, not "
-            "to KWin. Each preset therefore only <i>recommends</i> a font.</p>"
-            "<p>Konsole stores its font in a profile file, which this page can "
-            "write for you. For other terminals, set the font yourself:</p>"
-            "<ul>"
-            "<li><b>kitty</b> — <code>font_family</code> in <code>~/.config/kitty/kitty.conf</code></li>"
-            "<li><b>Alacritty</b> — <code>font.normal.family</code> in <code>~/.config/alacritty/alacritty.toml</code></li>"
-            "<li><b>WezTerm</b> — <code>font = wezterm.font(...)</code> in <code>~/.wezterm.lua</code></li>"
-            "</ul>"));
+            "The font and colours belong to the terminal, not to KWin, so they "
+            "are written into a Konsole profile.<br>"
+            "<b>A session reads that profile when it starts</b> — open a tab to "
+            "see the preset; terminals already running keep what they had."));
         expl->setWordWrap(true);
         expl->setTextFormat(Qt::RichText);
-        vb->addWidget(expl);
+        fl->addRow(expl);
     }
 
     {
-        QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Apply the preset font to Konsole"), fl);
-
         m_fontRecommend = new QLabel;
         m_fontRecommend->setTextFormat(Qt::RichText);
         m_fontRecommend->setWordWrap(true);
@@ -817,13 +1142,18 @@ QWidget *RetroTermKCM::buildFontsTab()
                 return;
             }
             QString err;
-            if (applyFontToKonsole(m_presetFont, m_presetFontSize, &err)) {
+            if (applyFontToKonsole(m_presetFont, m_presetFontSize,
+                                    m_presetCols, m_presetRows,
+                                    m_presetFontPx, m_presetScheme, &err)) {
+                const QString gridPart = (m_presetCols > 0 && m_presetRows > 0)
+                    ? i18n(" and resized it to %1×%2 characters", m_presetCols, m_presetRows)
+                    : QString();
                 m_fontStatus->setText(i18n(
                     "<span style=\"color:#27ae60;\">Wrote <b>%1</b> %2pt to "
-                    "%3.</span> Open a new Konsole tab or window to see it — "
+                    "%3%4.</span> Open a new Konsole tab or window to see it — "
                     "Konsole reads a profile when a session starts.",
                     m_presetFont, m_presetFontSize,
-                    m_konsoleProfile->currentText()));
+                    m_konsoleProfile->currentText(), gridPart));
             } else {
                 m_fontStatus->setText(i18n(
                     "<span style=\"color:#c0392b;\">Could not write the profile: "
@@ -848,9 +1178,48 @@ QWidget *RetroTermKCM::buildFontsTab()
             }
         });
 
+        // Konsole reads a profile when a session starts and never re-reads it:
+        // its D-Bus setProfile() is refused as "security sensitive" by default,
+        // so there is no way to push font, palette or window size into a window
+        // that is already open. That makes loading a preset feel broken — the
+        // CRT effect changes instantly through reconfigureEffect() while the
+        // terminal-side half appears not to happen at all. Rather than only
+        // explaining that in text, offer the one action that resolves it.
+        auto *newTermBtn = new QPushButton(i18n("Open a terminal with this preset"));
+        newTermBtn->setToolTip(i18n(
+            "A preset applies in two parts. The CRT effect — scanlines, "
+            "phosphor, curvature, pixel scaling — reaches open windows at "
+            "once. The font, palette and window size go into the Konsole "
+            "profile, and a session reads that profile only when it starts, so "
+            "terminals that are already open keep what they started with.\n\n"
+            "There is no way around that for a running session: Konsole keeps "
+            "profiles in memory, its D-Bus setProfile() re-applies the cached "
+            "copy rather than re-reading the file, and profiles added after "
+            "startup are not picked up at all. (Enabling Konsole's "
+            "security-sensitive D-Bus API does not change this, and would let "
+            "any local program run commands in your terminals.)\n\n"
+            "A *new* session does read the updated profile, so this simply "
+            "opens a tab — in the existing window when there is one.\n\n"
+            "Other terminals: set the font yourself — kitty's font_family, "
+            "Alacritty's font.normal.family, WezTerm's wezterm.font()."));
+        connect(newTermBtn, &QPushButton::clicked, this, [this] {
+            // --new-tab lands in the window the user already has open, which is
+            // far less disruptive than spawning a second window; Konsole is
+            // single-instance, so this reuses the running process. It still
+            // opens a window when nothing is running yet.
+            if (!QProcess::startDetached(QStringLiteral("konsole"),
+                                         {QStringLiteral("--new-tab")})
+                && !QProcess::startDetached(QStringLiteral("konsole"), {})
+                && m_fontStatus) {
+                m_fontStatus->setText(i18n(
+                    "<span style=\"color:#c0392b;\">Could not start konsole.</span>"));
+            }
+        });
+
         auto *row = new QHBoxLayout;
         row->addWidget(m_applyFontBtn);
         row->addWidget(m_restoreFontBtn);
+        row->addWidget(newTermBtn);
         row->addStretch();
         fl->addRow(QString(), row);
 
@@ -858,30 +1227,52 @@ QWidget *RetroTermKCM::buildFontsTab()
         m_fontStatus->setTextFormat(Qt::RichText);
         m_fontStatus->setWordWrap(true);
         fl->addRow(QString(), m_fontStatus);
-
-        vb->addWidget(gb);
     }
 
     refreshKonsoleProfiles();
     updateFontTabInfo();
-    vb->addStretch();
-    return page;
+    return gb;
 }
 
 // ── Tabblad: Effecten ─────────────────────────────────────────────────────────
+// Effects used to be one long QVBoxLayout of eight-plus GroupBoxes inside a
+// single QScrollArea — everything worked, but finding "Bloom" meant scrolling
+// past Phosphor, Geometry, and Scanlines first every time, with no sense of
+// where you were in the list. That's the flat-stack anti-pattern: it scales
+// to three groups, not eight-plus params-heavy ones. This is the same
+// sidebar-list + stacked-pages structure System Settings itself uses (also
+// Dolphin's and Kate's preferences) — a category list on the left drives a
+// QStackedWidget on the right, so only one group's worth of controls is ever
+// on screen and jumping to "Animations" is one click instead of a scroll.
 QWidget *RetroTermKCM::buildEffectsTab()
 {
     auto *page      = new QWidget;
     auto *outerVBox = new QVBoxLayout(page);
     outerVBox->setContentsMargins(0, 0, 0, 0);
 
-    auto *scroll = new QScrollArea;
-    scroll->setWidgetResizable(true);
-    auto *sc   = new QWidget;
-    auto *vbox = new QVBoxLayout(sc);
-    vbox->setSpacing(10);
-    scroll->setWidget(sc);
-    outerVBox->addWidget(scroll, 1);
+    auto *splitter = new QSplitter(Qt::Horizontal);
+
+    auto *nav = new QListWidget;
+    nav->setSelectionMode(QAbstractItemView::SingleSelection);
+    nav->setMaximumWidth(180);
+    nav->setUniformItemSizes(true);
+    splitter->addWidget(nav);
+
+    auto *stack = new QStackedWidget;
+    splitter->addWidget(stack);
+    splitter->setStretchFactor(0, 0);
+    splitter->setStretchFactor(1, 1);
+
+    // Each group keeps its own QGroupBox title (used elsewhere, e.g. tooltips
+    // referencing "the Pixel scaling group") — the nav gets a shorter label
+    // where the two would otherwise wrap awkwardly in a 180px-wide list.
+    auto addPage = [&](const QString &navLabel, QWidget *groupBox) {
+        nav->addItem(navLabel);
+        // scrollWrap() here too: a single group can still run long (Pixel
+        // Scaling has five rows plus quick-pick buttons) on a short window,
+        // and every other tab already gets this same resize safety net.
+        stack->addWidget(scrollWrap(groupBox));
+    };
 
     { // Fosfory
         QFormLayout *fl = nullptr;
@@ -897,7 +1288,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addParam(fl, i18n("Aging:"),             0.0,  1.0,  0.01, "phosphorAgeing",      i18n("0=new, 1=aged yellow/brown"));
         addParam(fl, i18n("Color temperature (K):"),3000,9300,50, "colorTemperature",   i18n("3000=warm yellow, 9300=cold blue-white"));
         addParam(fl, i18n("Persistence:"),       0.0,  1.0,  0.01, "phosphorPersistence", i18n("How long phosphor glow remains visible"));
-        vbox->addWidget(gb);
+        addPage(i18n("Phosphor & Color"), gb);
     }
     { // Geometrie
         QFormLayout *fl = nullptr;
@@ -905,7 +1296,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addParam(fl, i18n("Barrel distortion:"), 0.0, 1.0,  0.01, "screenCurvature",   i18n("0=flat, 1=strongly curved"));
         addParam(fl, i18n("Vignette:"),          0.0, 1.0,  0.01, "vignetteIntensity", i18n("Edge darkening"));
         addParam(fl, i18n("Glass reflection:"),  0.0, 0.30, 0.005,"ambientReflection", i18n("Screen glass reflection"));
-        vbox->addWidget(gb);
+        addPage(i18n("Screen Geometry"), gb);
     }
     { // Scanlines
         QFormLayout *fl = nullptr;
@@ -918,7 +1309,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         connect(rc, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &RetroTermKCM::markChanged);
         addParam(fl, i18n("Intensity:"), 0.0, 1.0, 0.01, "scanlinesIntensity", i18n("How dark the gaps are"));
         addParam(fl, i18n("Sharpness:"), 0.0, 1.0, 0.01, "scanlinesSharpness", i18n("0=soft, 1=sharp"));
-        vbox->addWidget(gb);
+        addPage(i18n("Scanlines"), gb);
     }
     { // Bloom
         QFormLayout *fl = nullptr;
@@ -927,7 +1318,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addParam(fl, i18n("Line glow:"),  0.0, 1.0, 0.01, "glowingLine", i18n("Horizontal line glow"));
         addParam(fl, i18n("Brightness:"), 0.0, 1.0, 0.01, "brightness",  i18n("Overall brightness"));
         addParam(fl, i18n("Contrast:"),  0.0, 1.0, 0.01, "contrast",    i18n("Contrast"));
-        vbox->addWidget(gb);
+        addPage(i18n("Bloom & Glow"), gb);
     }
     { // Ruis
         QFormLayout *fl = nullptr;
@@ -942,7 +1333,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addParam(fl, i18n("Sync intensity:"),  0.0, 1.0,  0.01, "horizontalSync",    i18n("Artifact strength"));
         addParam(fl, i18n("Flicker:"),         0.0, 1.0,  0.01, "flickering",        i18n("50/60Hz brightness flicker"));
         addParam(fl, i18n("Ghost intensity:"), 0.0, 0.5,  0.005,"ghostingIntensity", i18n("Frame echo (only in Ghosting sync mode)"));
-        vbox->addWidget(gb);
+        addPage(i18n("Noise & Sync"), gb);
     }
     { // Kleur
         QFormLayout *fl = nullptr;
@@ -952,7 +1343,7 @@ QWidget *RetroTermKCM::buildEffectsTab()
         addParam(fl, i18n("Chrom. aberration:"),0.0, 1.0, 0.01, "rbgShift",          i18n("Horizontally shifted RGB channels"));
         addParam(fl, i18n("Character smearing:"),0.0,1.0, 0.01, "characterSmearing", i18n("Horizontal character smearing"));
         addParam(fl, i18n("Burn-in:"),          0.0, 1.0, 0.01, "burnIn",            i18n("Slightly brighter screen center"));
-        vbox->addWidget(gb);
+        addPage(i18n("Color & Aberrations"), gb);
     }
     { // Animaties
         QFormLayout *fl = nullptr;
@@ -969,106 +1360,203 @@ QWidget *RetroTermKCM::buildEffectsTab()
         auto *dgs = new QDoubleSpinBox; dgs->setRange(0.5,10.0); dgs->setSuffix(i18n(" sec")); dgs->setSingleStep(0.5); dgs->setDecimals(1);
         fl->addRow(i18n("Degauss duration:"), dgs); m_spins["degaussDuration"] = dgs;
         connect(dgs, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &RetroTermKCM::markChanged);
-        vbox->addWidget(gb);
+        addPage(i18n("Animations"), gb);
     }
 
+    nav->setCurrentRow(0);
+    connect(nav, &QListWidget::currentRowChanged, stack, &QStackedWidget::setCurrentIndex);
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // PIXEL SCALING
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    {
-        QFormLayout *fl = nullptr;
-        auto *gb = makeGroup(i18n("Pixel scaling — simulate original screen resolution"), fl);
-        gb->setToolTip(i18n(
-            "Downscales the window image to the original pixel resolution of the "
-            "historical system, then scales it back up to full screen.\n"
-            "0.0 = no scaling (modern display)\n"
-            "1.0 = exact original pixels (true-size block pixels)\n"
-            "Values in between blend both views."));
-
-        // Hoofdslider
-        m_pixelScaleRow = new ParamRow(
-            i18n("Pixel scale:"), 0.0, 1.0, 0.01,
-            i18n("0.0 = no scaling  |  1.0 = exact original pixels"),
-            gb);
-        fl->addRow(i18n("Pixel scale:"), m_pixelScaleRow);
-        connect(m_pixelScaleRow, &ParamRow::valueChanged,
-                this, &RetroTermKCM::markChanged);
-
-        // Sampling-modus combobox
-        m_sampleModeCombo = new QComboBox;
-        m_sampleModeCombo->addItem(i18n("Nearest-neighbour  —  hard block pixels (classic)"));
-        m_sampleModeCombo->addItem(i18n("Bilinear  —  smooth, good for mid values"));
-        m_sampleModeCombo->addItem(i18n("Sharp bilinear  —  CRT-like: crisp edges, low aliasing"));
-        m_sampleModeCombo->setCurrentIndex(2);
-        m_sampleModeCombo->setToolTip(i18n(
-            "Nearest: true block pixels like original hardware.\n"
-            "Bilinear: smooth interpolation, good at pixelScale 0.3–0.7.\n"
-            "Sharp bilinear: simulates a CRT Gaussian beam — "
-            "crisp pixel edges without harsh stair-stepping. Recommended."));
-        fl->addRow(i18n("Sampling:"), m_sampleModeCombo);
-        connect(m_sampleModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, &RetroTermKCM::markChanged);
-
-        // Originele resolutie-invoer
-        // Automatisch ingevuld bij preset laden, handmatig aanpasbaar
-        m_targetResRow = new QWidget;
-        auto *rhl = new QHBoxLayout(m_targetResRow);
-        rhl->setContentsMargins(0, 0, 0, 0);
-        rhl->addWidget(new QLabel(i18n("Width:")));
-        m_targetResX = new QDoubleSpinBox;
-        m_targetResX->setRange(40, 3840);
-        m_targetResX->setDecimals(0);
-        m_targetResX->setSingleStep(8);
-        m_targetResX->setValue(320);
-        m_targetResX->setToolTip(i18n("Original horizontal resolution of the historical system (pixels)"));
-        rhl->addWidget(m_targetResX);
-        rhl->addSpacing(12);
-        rhl->addWidget(new QLabel(i18n("Height:")));
-        m_targetResY = new QDoubleSpinBox;
-        m_targetResY->setRange(24, 2160);
-        m_targetResY->setDecimals(0);
-        m_targetResY->setSingleStep(8);
-        m_targetResY->setValue(200);
-        m_targetResY->setToolTip(i18n("Original vertical resolution of the historical system (pixels)"));
-        rhl->addWidget(m_targetResY);
-        rhl->addStretch();
-
-        // Snelkeuze-knopjes voor veelvoorkomende resoluties
-        auto addRes = [&](const QString &lbl, int w, int h) {
-            auto *btn = new QPushButton(lbl);
-            btn->setFixedWidth(90);
-            btn->setToolTip(QStringLiteral("%1 × %2").arg(w).arg(h));
-            rhl->addWidget(btn);
-            connect(btn, &QPushButton::clicked, this, [this, w, h] {
-                m_targetResX->setValue(w);
-                m_targetResY->setValue(h);
-                markChanged();
-            });
-        };
-        addRes(i18n("320×200"),  320, 200);
-        addRes(i18n("640×200"),  640, 200);
-        addRes(i18n("640×480"),  640, 480);
-        addRes(i18n("720×350"),  720, 350);
-
-        fl->addRow(i18n("Original res.:"), m_targetResRow);
-
-        connect(m_targetResX, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-                this, &RetroTermKCM::markChanged);
-        connect(m_targetResY, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-                this, &RetroTermKCM::markChanged);
-
-        // Info-label
-        auto *info = new QLabel(i18n(
-            "<small><i>Tip: load a preset — original resolution is filled automatically.<br>"
-            "At pixelScale = 0.0, resolution has no visual effect.</i></small>"));
-        info->setWordWrap(true);
-        fl->addRow(QString(), info);
-
-        vbox->addWidget(gb);
-    }
-    vbox->addStretch();
+    outerVBox->addWidget(splitter, 1);
     return page;
+}
+
+// Pixel scaling moved out of Effects and into the Setup tab: it isn't a look
+// parameter you tune by eye like bloom or scanlines, it's "what resolution was
+// this machine" — the same category of decision as which preset or font you
+// picked, and it belongs next to those, not buried as one more entry in an
+// eight-item effects sidebar.
+QGroupBox *RetroTermKCM::buildScreenSection()
+{
+    QFormLayout *fl = nullptr;
+    auto *gb = makeGroup(i18n("Screen resolution — simulate original pixel size"), fl);
+    gb->setToolTip(i18n(
+        "Downscales the window image to the original pixel resolution of the "
+        "historical system, then scales it back up to full screen.\n"
+        "0.0 = no scaling (modern display)\n"
+        "1.0 = exact original pixels (true-size block pixels)\n"
+        "Values in between blend both views."));
+
+    // Bron-uitgelijnde integer zoom — de eerlijke route naar een virtueel
+    // scherm. Het resample-pad hieronder (pixel scale) kan tekst die op hoge
+    // resolutie gerasterd is nooit meer authentiek 320×200 maken: het prikt
+    // samples in klaargetekende glyphs en vermorzelt dunne beeldlijnen. Bij
+    // integer zoom k rendert Konsole zélf het pixelfont op cel×k fysieke
+    // pixels (dit tabblad schrijft die fontgrootte plus rand 0 het profiel
+    // in), waarna de shader het virtuele scherm exact terugleest als
+    // content/k. "Load preset" vult k automatisch in voor presets met een
+    // gedocumenteerd tekstraster.
+    m_integerZoomSpin = new QSpinBox;
+    m_integerZoomSpin->setRange(0, 8);
+    m_integerZoomSpin->setSpecialValueText(i18n("off — use pixel scale below"));
+    m_integerZoomSpin->setToolTip(i18n(
+        "Source-aligned integer scaling. At k > 0 the preset font is written "
+        "into the Konsole profile at exactly (cell × k) physical pixels and "
+        "the shader treats every k×k block as one virtual pixel — a "
+        "pixel-perfect virtual screen, unlike the approximate resample below. "
+        "Loading a preset with a documented text grid fills this in "
+        "automatically. Requires the preset font to be active in Konsole."));
+    fl->addRow(i18n("Integer zoom (k):"), m_integerZoomSpin);
+    connect(m_integerZoomSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &RetroTermKCM::markChanged);
+
+    // Kolom-ondergrens. Zonder deze rem koos "Load preset" de grootst mogelijke
+    // k, en dat is precies waar een authentiek beeld botst met een bruikbare
+    // terminal: elke stap in k deelt het aantal kolommen. Bij k=4 en een cel van
+    // 8px houdt een venster van 1280px nog 40 kolommen over — te smal voor
+    // fish-prompts, git-status of eza, die dan halverwege woorden afbreken.
+    m_minColumns = new QSpinBox;
+    m_minColumns->setRange(20, 300);
+    m_minColumns->setValue(80);
+    m_minColumns->setSuffix(i18n(" columns"));
+    m_minColumns->setToolTip(i18n(
+        "The zoom factor chosen when loading a preset is the largest one that "
+        "still leaves at least this many columns. 80 is the classic terminal "
+        "width nearly every shell prompt and command-line tool is designed "
+        "for; lower values give chunkier pixels but start to wrap modern "
+        "output badly."));
+    fl->addRow(i18n("Keep at least:"), m_minColumns);
+    connect(m_minColumns, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &RetroTermKCM::markChanged);
+    // Beide knoppen sturen welke k straks gekozen wordt, dus het preset-label
+    // (op het Setup-tabblad hierboven) moet meteen meebewegen — anders staat
+    // daar een zoomfactor die niet meer klopt met wat "Load preset" doet.
+    auto refreshPresetInfo = [this] {
+        if (!m_presetCombo) return;
+        const int idx = m_presetCombo->currentIndex();
+        updatePresetInfo(idx > 0 ? m_presets.at(idx - 1) : PresetValues{});
+    };
+    connect(m_minColumns, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, refreshPresetInfo);
+
+    m_authenticSize = new QCheckBox(
+        i18n("Resize the terminal to the machine's exact grid"));
+    m_authenticSize->setToolTip(i18n(
+        "Writes the historical character grid (40×25 for a C64, 80×25 for a "
+        "DOS machine, ...) into the Konsole profile, so the window matches the "
+        "original screen exactly.\n\n"
+        "Authentic, but be warned: a 40-column terminal is too narrow for most "
+        "modern shell prompts and listings — they will wrap mid-word. Leave "
+        "this off to keep your own terminal size and get the era-correct "
+        "pixels without the era-correct cramping."));
+    fl->addRow(QString(), m_authenticSize);
+    connect(m_authenticSize, &QCheckBox::toggled,
+            this, &RetroTermKCM::markChanged);
+    connect(m_authenticSize, &QCheckBox::toggled, this, refreshPresetInfo);
+    // De kolom-ondergrens stuurt alleen de niet-authentieke keuze; in
+    // authentieke modus bepaalt het historische raster alles.
+    connect(m_authenticSize, &QCheckBox::toggled, m_minColumns, &QWidget::setDisabled);
+    m_minColumns->setDisabled(m_authenticSize->isChecked());
+
+    // Hoofdslider
+    m_pixelScaleRow = new ParamRow(
+        i18n("Pixel scale:"), 0.0, 1.0, 0.01,
+        i18n("0.0 = no scaling  |  1.0 = exact original pixels"),
+        gb);
+    fl->addRow(i18n("Pixel scale:"), m_pixelScaleRow);
+    connect(m_pixelScaleRow, &ParamRow::valueChanged,
+            this, &RetroTermKCM::markChanged);
+    // Enable-logica in één plek: bij integer zoom is het hele resample-blok
+    // (pixel scale, sampling, doelresolutie) inert — de shader negeert het —
+    // en bij pixelScale 0 zijn de resolutievelden dat ook. Uitgrijzen laat
+    // die staat zien in plaats van hem in een tooltip te verstoppen.
+    auto updateScalingEnables = [this] {
+        const bool zoomed = m_integerZoomSpin && m_integerZoomSpin->value() > 0;
+        if (m_pixelScaleRow)   m_pixelScaleRow->setEnabled(!zoomed);
+        if (m_sampleModeCombo) m_sampleModeCombo->setEnabled(!zoomed);
+        if (m_targetResRow)
+            m_targetResRow->setEnabled(!zoomed
+                && m_pixelScaleRow && m_pixelScaleRow->value() > 0.001);
+    };
+    connect(m_pixelScaleRow, &ParamRow::valueChanged, this, updateScalingEnables);
+    connect(m_integerZoomSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, updateScalingEnables);
+
+    // Sampling-modus combobox
+    m_sampleModeCombo = new QComboBox;
+    m_sampleModeCombo->addItem(i18n("Nearest-neighbour  —  hard block pixels (classic)"));
+    m_sampleModeCombo->addItem(i18n("Bilinear  —  smooth, good for mid values"));
+    m_sampleModeCombo->addItem(i18n("Sharp bilinear  —  CRT-like: crisp edges, low aliasing"));
+    m_sampleModeCombo->setCurrentIndex(2);
+    m_sampleModeCombo->setToolTip(i18n(
+        "Nearest: true block pixels like original hardware.\n"
+        "Bilinear: smooth interpolation, good at pixelScale 0.3–0.7.\n"
+        "Sharp bilinear: simulates a CRT Gaussian beam — "
+        "crisp pixel edges without harsh stair-stepping. Recommended."));
+    fl->addRow(i18n("Sampling:"), m_sampleModeCombo);
+    connect(m_sampleModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &RetroTermKCM::markChanged);
+
+    // Originele resolutie-invoer
+    // Automatisch ingevuld bij preset laden, handmatig aanpasbaar
+    m_targetResRow = new QWidget;
+    auto *rhl = new QHBoxLayout(m_targetResRow);
+    rhl->setContentsMargins(0, 0, 0, 0);
+    rhl->addWidget(new QLabel(i18n("Width:")));
+    m_targetResX = new QDoubleSpinBox;
+    m_targetResX->setRange(40, 3840);
+    m_targetResX->setDecimals(0);
+    m_targetResX->setSingleStep(8);
+    m_targetResX->setValue(320);
+    m_targetResX->setToolTip(i18n("Original horizontal resolution of the historical system (pixels)"));
+    rhl->addWidget(m_targetResX);
+    rhl->addSpacing(12);
+    rhl->addWidget(new QLabel(i18n("Height:")));
+    m_targetResY = new QDoubleSpinBox;
+    m_targetResY->setRange(24, 2160);
+    m_targetResY->setDecimals(0);
+    m_targetResY->setSingleStep(8);
+    m_targetResY->setValue(200);
+    m_targetResY->setToolTip(i18n("Original vertical resolution of the historical system (pixels)"));
+    rhl->addWidget(m_targetResY);
+    rhl->addStretch();
+
+    // Snelkeuze-knopjes voor veelvoorkomende resoluties
+    auto addRes = [&](const QString &lbl, int w, int h) {
+        auto *btn = new QPushButton(lbl);
+        btn->setFixedWidth(90);
+        btn->setToolTip(QStringLiteral("%1 × %2").arg(w).arg(h));
+        rhl->addWidget(btn);
+        connect(btn, &QPushButton::clicked, this, [this, w, h] {
+            m_targetResX->setValue(w);
+            m_targetResY->setValue(h);
+            markChanged();
+        });
+    };
+    addRes(i18n("320×200"),  320, 200);
+    addRes(i18n("640×200"),  640, 200);
+    addRes(i18n("640×480"),  640, 480);
+    addRes(i18n("720×350"),  720, 350);
+
+    fl->addRow(i18n("Original res.:"), m_targetResRow);
+    // setValue() only emits valueChanged on an actual change, so the enable
+    // states need one explicit sync here — load() calling setValue(0.0) on a
+    // slider that already defaults to 0.0 fires no signal at all, and the
+    // rows would otherwise start enabled regardless.
+    updateScalingEnables();
+
+    connect(m_targetResX, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &RetroTermKCM::markChanged);
+    connect(m_targetResY, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &RetroTermKCM::markChanged);
+
+    // Info-label
+    auto *info = new QLabel(i18n(
+        "<small><i>Tip: load a preset — original resolution is filled automatically.<br>"
+        "At pixelScale = 0.0, resolution has no visual effect.</i></small>"));
+    info->setWordWrap(true);
+    fl->addRow(QString(), info);
+
+    return gb;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1082,6 +1570,13 @@ void RetroTermKCM::reconfigureKWinEffect()
     QDBusInterface fx(QStringLiteral("org.kde.KWin"),
                       QStringLiteral("/Effects"),
                       QStringLiteral("org.kde.kwin.Effects"));
+    // loadEffect() is safe to call on an already-loaded effect (KWin just
+    // no-ops) and is the only way an effect that was never enabled — the
+    // Plugins/retro-termEnabled flag save() now sets is only read by KWin at
+    // its own startup — actually starts running in the *current* KWin
+    // process, rather than requiring a logout or a full "kwin --replace"
+    // before any of this KCM's settings become visible at all.
+    fx.call(QStringLiteral("loadEffect"), QStringLiteral("retro-term"));
     fx.call(QStringLiteral("reconfigureEffect"), QStringLiteral("retro-term"));
 }
 
@@ -1094,8 +1589,41 @@ void RetroTermKCM::schedulePreview()
 void RetroTermKCM::pushLivePreview()
 {
     if (!m_livePreview || !m_livePreview->isChecked()) return;
+    // The flag keeps save() from touching the Konsole profile: live preview is
+    // for the CRT effect, which is reversible and window-local, not for
+    // rewriting the user's terminal settings on every slider tick.
+    m_inLivePreview = true;
     save();
+    m_inLivePreview = false;
     reconfigureKWinEffect();
+}
+
+void RetroTermKCM::commitKonsoleProfile()
+{
+    if (m_presetFont.isEmpty()) return;
+    if (!m_autoApplyFont || !m_autoApplyFont->isChecked()
+        || !m_autoApplyFont->isEnabled()) return;
+
+    QString err;
+    if (applyFontToKonsole(m_presetFont, m_presetFontSize, m_presetCols,
+                           m_presetRows, m_presetFontPx, m_presetScheme, &err)) {
+        if (!m_fontStatus) return;
+        const QString gridPart = (m_presetCols > 0 && m_presetRows > 0)
+            ? i18n(" and resized it to %1×%2 characters", m_presetCols, m_presetRows)
+            : QString();
+        const QString sizePart = (m_presetFontPx > 0)
+            ? i18n("%1px (pixel-exact)", m_presetFontPx)
+            : i18n("%1pt", m_presetFontSize);
+        m_fontStatus->setText(i18n(
+            "<span style=\"color:#27ae60;\">Wrote <b>%1</b> %2 to %3%4.</span> "
+            "New Konsole windows use it; already-open ones keep what they "
+            "started with.",
+            m_presetFont, sizePart, m_konsoleProfile->currentText(), gridPart));
+    } else if (m_fontStatus && !err.isEmpty()) {
+        m_fontStatus->setText(i18n(
+            "<span style=\"color:#c0392b;\">Could not write the profile: %1</span>",
+            err));
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1152,7 +1680,77 @@ void RetroTermKCM::refreshKonsoleProfiles()
     }
 }
 
-bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize, QString *error)
+static const SchemeDef *findScheme(const QString &id)
+{
+    if (id.isEmpty()) return nullptr;
+    for (const auto &d : SCHEME_DEFS)
+        if (id == QLatin1String(d.id)) return &d;
+    return nullptr;
+}
+
+// Feeds the on-screen preview. Uses the same SCHEME_DEFS the profile writer
+// uses, so what the preview shows and what Konsole eventually gets cannot
+// drift apart — they are the same numbers.
+void RetroTermKCM::updatePreview(const PresetValues &p)
+{
+    if (!m_preview) return;
+    const SchemeDef *s = findScheme(p.scheme);
+    auto qc = [](SchemeColor c) { return QColor(c.r, c.g, c.b); };
+
+    QList<QColor> ansi;
+    if (s) for (const auto &c : s->ansi) ansi << qc(c);
+
+    const int k  = zoomFor(p, m_minColumns ? m_minColumns->value() : 80,
+                           m_authenticSize && m_authenticSize->isChecked());
+    const int px = (k > 0 && p.targetRows > 0)
+                 ? ((int)p.targetResY / p.targetRows) * k : 0;
+
+    m_preview->setPreset(p.font, px, p.fontSize,
+                         s ? qc(s->bg) : QColor(Qt::black),
+                         s ? qc(s->fg) : QColor(Qt::white), ansi);
+}
+
+QString RetroTermKCM::ensureColorScheme(const QString &id)
+{
+    const SchemeDef *def = findScheme(id);
+    if (!def) return QString();
+
+    const QString schemeName = QStringLiteral("Phosphor ") + QLatin1String(def->name);
+    const QString dir =
+        QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+        + QStringLiteral("/konsole");
+    QDir().mkpath(dir);
+    const QString path = dir + QLatin1Char('/') + schemeName
+                       + QStringLiteral(".colorscheme");
+
+    // Altijd overschrijven: het bestand is van ons (Phosphor-naamruimte), en zo
+    // pikt een bestaand schema paletcorrecties in nieuwere versies vanzelf op.
+    KSharedConfig::Ptr cfg = KSharedConfig::openConfig(path, KConfig::SimpleConfig);
+    auto writeColor = [&](const QString &group, SchemeColor c) {
+        cfg->group(group).writeEntry(QStringLiteral("Color"),
+            QStringLiteral("%1,%2,%3").arg(c.r).arg(c.g).arg(c.b));
+    };
+    cfg->group(QStringLiteral("General"))
+        .writeEntry(QStringLiteral("Description"), schemeName);
+    writeColor(QStringLiteral("Background"), def->bg);
+    writeColor(QStringLiteral("BackgroundIntense"), def->bg);
+    writeColor(QStringLiteral("BackgroundFaint"), def->bg);
+    writeColor(QStringLiteral("Foreground"), def->fg);
+    writeColor(QStringLiteral("ForegroundIntense"), def->fg);
+    writeColor(QStringLiteral("ForegroundFaint"), def->fg);
+    for (int i = 0; i < 8; ++i) {
+        const QString n = QString::number(i);
+        writeColor(QStringLiteral("Color") + n, def->ansi[i]);
+        writeColor(QStringLiteral("Color") + n + QStringLiteral("Intense"), def->ansi[i + 8]);
+        writeColor(QStringLiteral("Color") + n + QStringLiteral("Faint"), def->ansi[i]);
+    }
+    cfg->sync();
+    return schemeName;
+}
+
+bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize,
+                                       int cols, int rows, int fontPixelSize,
+                                       const QString &scheme, QString *error)
 {
     if (!m_konsoleProfile || !m_konsoleProfile->isEnabled()) {
         if (error) *error = i18n("no Konsole profile selected");
@@ -1166,29 +1764,113 @@ bool RetroTermKCM::applyFontToKonsole(const QString &family, int pointSize, QStr
 
     KSharedConfig::Ptr cfg = KSharedConfig::openConfig(path, KConfig::SimpleConfig);
     KConfigGroup appearance = cfg->group(QStringLiteral("Appearance"));
+    KConfigGroup general    = cfg->group(QStringLiteral("General"));
 
-    // Stash whatever font the profile had before Phosphor ever touched it, so
-    // "Restore" can put the user's own choice back. Written once per profile:
-    // overwriting it on every preset load would, after two presets, only be able
-    // to restore the *previous preset's* font — which is not what a user who
-    // spent time picking their terminal font is asking to get back.
-    const QString previous =
+    // Stash whatever font/antialiasing/grid the profile had before Phosphor
+    // ever touched it, so "Restore" can put the user's own choice back.
+    // Written once per profile: overwriting it on every preset load would,
+    // after two presets, only be able to restore the *previous preset's*
+    // choices — which is not what a user who spent time on their own profile
+    // is asking to get back.
+    const QString previousFont =
         appearance.readEntry(QStringLiteral("Font"), QString());
+    const bool previousAA =
+        appearance.readEntry(QStringLiteral("AntiAliasFonts"), true);
+    const int previousCols = general.readEntry(QStringLiteral("TerminalColumns"), 0);
+    const int previousRows = general.readEntry(QStringLiteral("TerminalRows"), 0);
+    // -1 = "sleutel was afwezig": bij restore dan verwijderen in plaats van
+    // Konsole's default terugschrijven alsof de gebruiker die ooit koos.
+    const int previousMargin = general.readEntry(QStringLiteral("TerminalMargin"), -1);
+    const QString previousScheme =
+        appearance.readEntry(QStringLiteral("ColorScheme"), QString());
     KConfigGroup ours = KSharedConfig::openConfig(QStringLiteral("kwinrc"))
                             ->group(QLatin1String(CFG_GROUP));
     const QString backupKey =
         QStringLiteral("OriginalKonsoleFont-") + QFileInfo(path).fileName();
-    if (!previous.isEmpty() && !ours.hasKey(backupKey)) {
-        ours.writeEntry(backupKey, previous);
+    const QString backupAAKey =
+        QStringLiteral("OriginalKonsoleAA-") + QFileInfo(path).fileName();
+    const QString backupColsKey =
+        QStringLiteral("OriginalKonsoleCols-") + QFileInfo(path).fileName();
+    const QString backupRowsKey =
+        QStringLiteral("OriginalKonsoleRows-") + QFileInfo(path).fileName();
+    const QString backupMarginKey =
+        QStringLiteral("OriginalKonsoleMargin-") + QFileInfo(path).fileName();
+    const QString backupSchemeKey =
+        QStringLiteral("OriginalKonsoleScheme-") + QFileInfo(path).fileName();
+    if (!previousFont.isEmpty() && !ours.hasKey(backupKey)) {
+        ours.writeEntry(backupKey, previousFont);
+        ours.writeEntry(backupAAKey, previousAA);
+        ours.writeEntry(backupColsKey, previousCols);
+        ours.writeEntry(backupRowsKey, previousRows);
+        ours.writeEntry(backupMarginKey, previousMargin);
+        ours.writeEntry(backupSchemeKey, previousScheme);
         ours.sync();
     }
 
     // Konsole slaat het font op als een QFont-beschrijvingsstring: familie,
-    // puntgrootte, en daarna acht velden (pixelSize, styleHint, weight, italic,
-    // underline, strikeout, fixedPitch, rawMode) die Konsole zelf ook altijd
-    // op deze waarden schrijft. -1 bij pixelSize betekent "gebruik puntgrootte".
-    appearance.writeEntry(QStringLiteral("Font"),
-        QStringLiteral("%1,%2,-1,5,50,0,0,0,0,0").arg(family).arg(pointSize));
+    // puntgrootte, pixelgrootte, en daarna zeven velden (styleHint, weight,
+    // style, underline, strikeout, fixedPitch, rawMode) die Konsole zelf ook
+    // altijd op deze waarden schrijft. -1 betekent "dit veld niet gebruiken".
+    //
+    // fontPixelSize > 0 kiest de pixel-variant: puntgrootte -1, pixelgrootte
+    // exact cel×k. Een puntgrootte levert een cel van "wat 14pt op deze
+    // schermdichtheid toevallig is" — vrijwel nooit een geheel veelvoud van
+    // het virtuele pixelraster, en precies daardoor vermorzelde het
+    // resample-pad glyphs. Pixelgrootte maakt de cel exact.
+    appearance.writeEntry(QStringLiteral("Font"), fontPixelSize > 0
+        ? QStringLiteral("%1,-1,%2,5,50,0,0,0,0,0").arg(family).arg(fontPixelSize)
+        : QStringLiteral("%1,%2,-1,5,50,0,0,0,0,0").arg(family).arg(pointSize));
+
+    // These preset fonts are bitmap/pixel fonts (int10h, kreativekorp, C64 Pro
+    // Mono, Topaz, ...) drawn as exact blocky pixels on purpose. Antialiasing
+    // is the right default for a normal typeface, but on a pixel font it
+    // blurs precisely the crisp edges the font was designed to have — the
+    // opposite of what a CRT preset is going for. Off whenever Phosphor sets
+    // the font; restoreKonsoleFont() below puts it back exactly as found.
+    appearance.writeEntry(QStringLiteral("AntiAliasFonts"), false);
+
+    // Machinekleuren. ensureColorScheme() schrijft/ververst het
+    // "Phosphor <naam>"-schemabestand en geeft de naam terug; een preset
+    // zonder schema-id laat het kleurenschema van het profiel met rust.
+    if (!scheme.isEmpty()) {
+        const QString schemeName = ensureColorScheme(scheme);
+        if (!schemeName.isEmpty())
+            appearance.writeEntry(QStringLiteral("ColorScheme"), schemeName);
+    }
+
+    // The other half of "the font renders on the normal desktop, not the
+    // simulated screen": the CRT effect's pixel-scaling resamples whatever
+    // Konsole already rendered, quantizing it down to the historical pixel
+    // resolution — but that quantization grid means nothing to Konsole's own
+    // renderer unless the *window* actually spans that many character cells.
+    // Setting TerminalColumns/TerminalRows to the preset's real historical
+    // text-mode grid (sourced per-machine, not derived from pixel size — see
+    // PresetValues::targetCols/targetRows) means Konsole's own rendered
+    // window lines up with the resolution the shader is simulating, instead
+    // of an arbitrary modern terminal size the effect then has to quantize
+    // through blindly. 0 (no documented grid for this machine) leaves
+    // whatever size the profile already had alone.
+    if (cols > 0 && rows > 0) {
+        general.writeEntry(QStringLiteral("TerminalColumns"), cols);
+        general.writeEntry(QStringLiteral("TerminalRows"), rows);
+    } else if (ours.hasKey(backupColsKey)) {
+        // Niet-authentiek: raster niet opleggen én een eerder opgelegd raster
+        // ongedaan maken. Zonder deze tak blijft een profiel dat ooit op 40×25
+        // gezet is daar hangen, en dan is "houd je eigen terminalgrootte" een
+        // loze belofte: de gebruiker zit nog steeds in 40 kolommen.
+        const int origCols = ours.readEntry(backupColsKey, 0);
+        const int origRows = ours.readEntry(backupRowsKey, 0);
+        if (origCols > 0 && origRows > 0) {
+            general.writeEntry(QStringLiteral("TerminalColumns"), origCols);
+            general.writeEntry(QStringLiteral("TerminalRows"), origRows);
+        }
+    }
+    // Bij pixel-exacte rendering moet het content-gebied exact
+    // cols×celW×k bij rows×celH×k zijn — Konsole's eigen rand (standaard
+    // 1px, sleutel bevestigd in libkonsoleprivate) zou daar stille
+    // fase-verschuiving bovenop leggen en de exacte reconstructie breken.
+    if (fontPixelSize > 0)
+        general.writeEntry(QStringLiteral("TerminalMargin"), 0);
     cfg->sync();
 
     if (cfg->accessMode() != KConfig::ReadWrite) {
@@ -1214,20 +1896,67 @@ bool RetroTermKCM::restoreKonsoleFont(QString *error)
                             ->group(QLatin1String(CFG_GROUP));
     const QString backupKey =
         QStringLiteral("OriginalKonsoleFont-") + QFileInfo(path).fileName();
+    const QString backupAAKey =
+        QStringLiteral("OriginalKonsoleAA-") + QFileInfo(path).fileName();
+    const QString backupColsKey =
+        QStringLiteral("OriginalKonsoleCols-") + QFileInfo(path).fileName();
+    const QString backupRowsKey =
+        QStringLiteral("OriginalKonsoleRows-") + QFileInfo(path).fileName();
+    const QString backupMarginKey =
+        QStringLiteral("OriginalKonsoleMargin-") + QFileInfo(path).fileName();
+    const QString backupSchemeKey =
+        QStringLiteral("OriginalKonsoleScheme-") + QFileInfo(path).fileName();
     const QString original = ours.readEntry(backupKey, QString());
     if (original.isEmpty()) {
         if (error) *error = i18n("this profile has no Phosphor-saved original font");
         return false;
     }
+    // Default true/0 (Konsole's own default / "leave alone") if this profile
+    // predates the AntiAliasFonts/grid backups added alongside
+    // applyFontToKonsole()'s AA=false and TerminalColumns/Rows writes — an
+    // existing OriginalKonsoleFont- backup from before those changes won't
+    // have matching keys, and "restore to what Konsole normally does" is the
+    // correct fallback, not "restore to off" or "restore to 0×0".
+    const bool originalAA     = ours.readEntry(backupAAKey, true);
+    const int  originalCols   = ours.readEntry(backupColsKey, 0);
+    const int  originalRows   = ours.readEntry(backupRowsKey, 0);
+    // -2 = "geen backup" (pre-dates margin support), -1 = "sleutel was afwezig"
+    const int  originalMargin = ours.readEntry(backupMarginKey, -2);
 
     KSharedConfig::Ptr cfg = KSharedConfig::openConfig(path, KConfig::SimpleConfig);
-    cfg->group(QStringLiteral("Appearance"))
-        .writeEntry(QStringLiteral("Font"), original);
+    KConfigGroup appearance = cfg->group(QStringLiteral("Appearance"));
+    KConfigGroup general    = cfg->group(QStringLiteral("General"));
+    appearance.writeEntry(QStringLiteral("Font"), original);
+    appearance.writeEntry(QStringLiteral("AntiAliasFonts"), originalAA);
+    if (originalCols > 0 && originalRows > 0) {
+        general.writeEntry(QStringLiteral("TerminalColumns"), originalCols);
+        general.writeEntry(QStringLiteral("TerminalRows"), originalRows);
+    }
+    if (originalMargin >= 0)
+        general.writeEntry(QStringLiteral("TerminalMargin"), originalMargin);
+    else if (originalMargin == -1)
+        general.deleteEntry(QStringLiteral("TerminalMargin"));
+    // Kleurenschema: alleen aankomen als er ooit een backup gemaakt is
+    // (hasKey), zodat een pre-scheme backup niets sloopt. Lege backup =
+    // sleutel was afwezig -> verwijderen, Konsole valt dan op zijn eigen
+    // default terug.
+    if (ours.hasKey(backupSchemeKey)) {
+        const QString originalScheme = ours.readEntry(backupSchemeKey, QString());
+        if (originalScheme.isEmpty())
+            appearance.deleteEntry(QStringLiteral("ColorScheme"));
+        else
+            appearance.writeEntry(QStringLiteral("ColorScheme"), originalScheme);
+    }
     cfg->sync();
 
     // Backup weggooien: het profiel staat weer op de eigen keuze van de gebruiker,
     // dus de volgende preset-toepassing mag daar opnieuw een verse backup van maken.
     ours.deleteEntry(backupKey);
+    ours.deleteEntry(backupAAKey);
+    ours.deleteEntry(backupColsKey);
+    ours.deleteEntry(backupRowsKey);
+    ours.deleteEntry(backupMarginKey);
+    ours.deleteEntry(backupSchemeKey);
     ours.sync();
     return true;
 }
@@ -1272,19 +2001,31 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     if (auto *s2 = m_spins.value("warmupDuration"))  s2->setValue(p.warmupDuration);
     if (auto *s2 = m_spins.value("degaussDuration")) s2->setValue(p.degaussDuration);
 
-    // Pixel scaling: fill in original resolution and enable scaling if preset has one.
+    // Pixel scaling. Preference order:
     //
-    // This used to set 0.7 rather than 1.0, which is why "the resolution doesn't
-    // do anything" — the shader interpolates the sampling grid between the
-    // window's own pixel size and targetRes (effRes = mix(resolution, targetRes,
-    // pixelScale)), so on a 1200px-wide terminal 0.7 lands at ~580 cells: barely
-    // two screen pixels per cell, an effect you have to hunt for. 1.0 is the
-    // value that actually means what this preset field promises — the machine's
-    // real resolution, one block per original pixel.
+    // 1. Integer zoom (k > 0) — the honest virtual screen. Only possible when
+    //    the preset has a sourced grid whose cell divides the resolution
+    //    cleanly; the font then gets written at exactly cell×k pixels and the
+    //    shader reconstructs the virtual screen losslessly. The resample
+    //    slider goes to 0: with integer zoom active the shader ignores it,
+    //    and a nonzero-but-ignored slider reads as a lie.
+    //
+    // 2. No pixel scaling at all — for presets without a clean grid. The
+    //    resample path used to be turned on at 1.0 here, which was worse than
+    //    doing nothing: on an Amiga preset it point-sampled a 1850px-wide
+    //    rendering down to 320 virtual pixels and turned every glyph into
+    //    mush, while claiming to depict a machine whose text grid we
+    //    explicitly could not source. These presets still get their font,
+    //    palette, scanlines, phosphor and curvature — everything except a
+    //    fake resolution that destroys the text to assert something unproven.
+    const bool authentic = m_authenticSize && m_authenticSize->isChecked();
+    const int  minCols   = m_minColumns ? m_minColumns->value() : 80;
+    const int  k = zoomFor(p, minCols, authentic);
+    if (m_integerZoomSpin) m_integerZoomSpin->setValue(k);
     if (p.targetResX > 0.0 && p.targetResY > 0.0) {
         if (m_targetResX) m_targetResX->setValue(p.targetResX);
         if (m_targetResY) m_targetResY->setValue(p.targetResY);
-        if (m_pixelScaleRow) m_pixelScaleRow->setValue(1.0);
+        if (m_pixelScaleRow) m_pixelScaleRow->setValue(0.0);
         if (m_sampleModeCombo) m_sampleModeCombo->setCurrentIndex(2);
     } else {
         if (m_pixelScaleRow) m_pixelScaleRow->setValue(0.0);
@@ -1295,20 +2036,42 @@ void RetroTermKCM::applyPreset(const PresetValues &p)
     // Konsole profile when the user has asked for that.
     m_presetFont     = p.font;
     m_presetFontSize = p.fontSize;
+    // Alleen in authentieke modus krijgt Konsole het historische raster
+    // opgelegd; anders houdt het venster zijn eigen afmetingen en volgt het
+    // virtuele scherm daaruit (de shader deelt de contentgrootte door k).
+    m_presetCols     = authentic ? p.targetCols : 0;
+    m_presetRows     = authentic ? p.targetRows : 0;
+    // Pixel-exact font size for the integer-zoom path: the historical cell
+    // height (resY / rows — clean by zoomFor()'s divisibility check) times k.
+    //
+    // KNOWN LIMITATION: this assumes the machine's historical cell height is
+    // also the font's cell height, which does not hold everywhere. Measured
+    // with QFontMetricsF: "PxPlus IBM EGA 8x14" renders integrally at
+    // pixelSize 16 (cell 8x14), not at the 14*k this picks; "PxPlus IBM VGA
+    // 9x16" and "Px437 IBM 3270pc" have no integral size at all between 8 and
+    // 64. Those presets still render far sharper than the resample path, but
+    // are not demonstrably pixel-exact — the guarantee holds where the font is
+    // integral at cell*k (C64 Pro Mono, Antiquarius, Mizuno, Px437 Wyse700b,
+    // verified). The proper fix is to choose the pixel size by measuring the
+    // font rather than deriving it from the historical cell, which also unlocks
+    // integer zoom for machines with no documented grid (Topaz is integral at
+    // 16, 18, 20, ...). Left as a follow-up rather than half-done here.
+    m_presetFontPx   = (k > 0) ? ((int)p.targetResY / p.targetRows) * k : 0;
+    m_presetScheme   = p.scheme;
     updateFontTabInfo();
-    if (!p.font.isEmpty() && m_autoApplyFont && m_autoApplyFont->isChecked()
-        && m_autoApplyFont->isEnabled()) {
-        QString err;
-        if (applyFontToKonsole(p.font, p.fontSize, &err) && m_fontStatus) {
+    updatePreview(p);
+    // The Konsole profile is deliberately NOT written here. Selecting a preset
+    // should be free to explore: the preview and the CRT effect show it
+    // immediately, and only OK/Apply commits anything to the user's terminal
+    // profile — so Cancel leaves nothing behind and no font ever has to be put
+    // back by hand. commitKonsoleProfile(), called from save(), does the write.
+    if (!p.font.isEmpty() && m_autoApplyFont
+        && m_autoApplyFont->isChecked() && m_autoApplyFont->isEnabled()) {
+        m_profilePending = true;
+        if (m_fontStatus)
             m_fontStatus->setText(i18n(
-                "<span style=\"color:#27ae60;\">Wrote <b>%1</b> %2pt to %3.</span> "
-                "Open a new Konsole tab or window to see it.",
-                p.font, p.fontSize, m_konsoleProfile->currentText()));
-        } else if (m_fontStatus && !err.isEmpty()) {
-            m_fontStatus->setText(i18n(
-                "<span style=\"color:#c0392b;\">Could not write the profile: %1</span>",
-                err));
-        }
+                "<i>Press OK or Apply to write <b>%1</b> to the %2 profile.</i>",
+                p.font, m_konsoleProfile->currentText()));
     }
 
     updatePresetInfo(p);
@@ -1336,7 +2099,36 @@ void RetroTermKCM::updatePresetInfo(const PresetValues &p)
         ? i18n("Target resolution: %1×%2", (int)p.targetResX, (int)p.targetResY)
         : i18n("Target resolution: native (no pixel scaling)");
 
-    m_presetInfo->setText(fontPart + QStringLiteral("<br>") + resPart);
+    // Shown *before* "Load preset" so it's clear what will actually happen:
+    // which zoom gets picked, and whether the terminal will be resized to the
+    // historical grid or keep its own size. Presets whose machine has no
+    // documented text grid (bitmap-GUI systems, conflicting sources) can't do
+    // integer zoom at all and say so rather than implying otherwise.
+    const bool authentic = m_authenticSize && m_authenticSize->isChecked();
+    const int  minCols   = m_minColumns ? m_minColumns->value() : 80;
+    const int  k = zoomFor(p, minCols, authentic);
+    QString gridPart;
+    if (k <= 0) {
+        gridPart = i18n("Pixel grid: no documented text grid for this machine — "
+                        "no pixel scaling (font, palette and CRT effects still apply)");
+    } else if (authentic) {
+        gridPart = i18n("Pixel grid: zoom %1×, terminal resized to <b>%2×%3</b> "
+                        "characters (authentic, but narrow for modern prompts)",
+                        k, p.targetCols, p.targetRows);
+    } else {
+        // Estimate what the user's own window will hold at this zoom, so the
+        // trade-off is a number on screen instead of a surprise afterwards.
+        const int cellW = (int)p.targetResX / p.targetCols;
+        QSize scr(1920, 1080);
+        if (const QScreen *s = QGuiApplication::primaryScreen())
+            scr = s->availableGeometry().size();
+        const int cols = (scr.width() * 9 / 10) / (cellW * k);
+        gridPart = i18n("Pixel grid: zoom %1×, terminal keeps its own size "
+                        "(~%2 columns full-screen)", k, cols);
+    }
+
+    m_presetInfo->setText(fontPart + QStringLiteral("<br>") + resPart
+                           + QStringLiteral("<br>") + gridPart);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1393,10 +2185,13 @@ void RetroTermKCM::load()
     if (auto *s = m_spins.value("degaussDuration")) s->setValue(cfg.readEntry("degaussDuration", 2.5));
 
     // Pixel scaling
-    if (m_pixelScaleRow)   m_pixelScaleRow->setValue(cfg.readEntry("pixelScale",  0.0));
-    if (m_sampleModeCombo) m_sampleModeCombo->setCurrentIndex(cfg.readEntry("sampleMode", 2));
-    if (m_targetResX)      m_targetResX->setValue(cfg.readEntry("targetResX", 320.0));
-    if (m_targetResY)      m_targetResY->setValue(cfg.readEntry("targetResY", 200.0));
+    if (m_pixelScaleRow)    m_pixelScaleRow->setValue(cfg.readEntry("pixelScale",  0.0));
+    if (m_sampleModeCombo)  m_sampleModeCombo->setCurrentIndex(cfg.readEntry("sampleMode", 2));
+    if (m_targetResX)       m_targetResX->setValue(cfg.readEntry("targetResX", 320.0));
+    if (m_targetResY)       m_targetResY->setValue(cfg.readEntry("targetResY", 200.0));
+    if (m_integerZoomSpin)  m_integerZoomSpin->setValue(cfg.readEntry("integerZoom", 0));
+    if (m_minColumns)       m_minColumns->setValue(cfg.readEntry("minColumns", 80));
+    if (m_authenticSize)    m_authenticSize->setChecked(cfg.readEntry("authenticSize", false));
 
     // Every setValue() above ran through markChanged(), so the live-preview timer
     // is now armed to write back the exact values just read and reload the effect
@@ -1444,12 +2239,43 @@ void RetroTermKCM::save()
     if (auto *s = m_spins.value("degaussDuration")) grp.writeEntry("degaussDuration",s->value());
 
     // Pixel scaling
-    if (m_pixelScaleRow)   grp.writeEntry("pixelScale",  m_pixelScaleRow->value());
-    if (m_sampleModeCombo) grp.writeEntry("sampleMode",  m_sampleModeCombo->currentIndex());
-    if (m_targetResX)      grp.writeEntry("targetResX",  m_targetResX->value());
-    if (m_targetResY)      grp.writeEntry("targetResY",  m_targetResY->value());
+    if (m_pixelScaleRow)    grp.writeEntry("pixelScale",  m_pixelScaleRow->value());
+    if (m_sampleModeCombo)  grp.writeEntry("sampleMode",  m_sampleModeCombo->currentIndex());
+    if (m_targetResX)       grp.writeEntry("targetResX",  m_targetResX->value());
+    if (m_targetResY)       grp.writeEntry("targetResY",  m_targetResY->value());
+    if (m_integerZoomSpin)  grp.writeEntry("integerZoom", m_integerZoomSpin->value());
+    // Alleen KCM-voorkeuren: de effect-kant leest ze niet, ze sturen alleen
+    // welke k "Load preset" kiest en of het raster opgelegd wordt.
+    if (m_minColumns)       grp.writeEntry("minColumns",    m_minColumns->value());
+    if (m_authenticSize)    grp.writeEntry("authenticSize", m_authenticSize->isChecked());
+
+    // This KCM is reached by clicking the effect's own config icon in Desktop
+    // Effects, which implies it's already enabled there — but it's just as
+    // reachable directly (search "Retro Terminal" in System Settings, or the
+    // "phosphor" CLI), and someone who only ever opens *this* page could
+    // configure all 30 parameters perfectly and still see nothing, because
+    // KWin only auto-loads effects marked enabled here at its own startup.
+    // "Off" mode is intentionally NOT wired to this flag — TargetMode::Off
+    // means an empty target-class list, i.e. the effect stays loaded and
+    // enabled but matches no window, exactly as m_modeOff's tooltip already
+    // promises ("stays loaded but does nothing").
+    KConfigGroup plugins = cfg->group(QStringLiteral("Plugins"));
+    plugins.writeEntry("retro-termEnabled", true);
 
     cfg->sync();
+
+    // Only a real OK/Apply reaches the user's terminal profile; live preview
+    // sets m_inLivePreview so exploring presets stays free of side effects.
+    // Crucially, live preview must then leave the module reporting unsaved
+    // changes while a profile write is still outstanding — clearing it made
+    // System Settings skip save() entirely on OK, so the profile never got
+    // written and the preset appeared to apply only halfway.
+    if (m_inLivePreview) {
+        setNeedsSave(m_profilePending);
+        return;
+    }
+    commitKonsoleProfile();
+    m_profilePending = false;
     setNeedsSave(false);
 }
 

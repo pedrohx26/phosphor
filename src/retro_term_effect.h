@@ -105,6 +105,9 @@ private:
     float  m_targetResX          = 320.0f; // original width
     float  m_targetResY          = 200.0f; // original height
     int    m_sampleMode          = 2;      // 0=nearest 1=bilinear 2=sharp-bilinear
+    // Source-aligned integer scaling factor k; 0 = off (resample path above).
+    // See the integerZoom uniform in retro.frag for the full architecture note.
+    int    m_integerZoom         = 0;
 
     // Trim, in pixels, taken off the terminal's content area before the effect is
     // applied. KWin can tell the decoration from the client area but cannot see

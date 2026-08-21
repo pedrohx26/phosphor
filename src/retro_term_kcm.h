@@ -21,6 +21,7 @@
 #include <QScrollArea>
 #include <QSet>
 #include <QSlider>
+#include <QSpinBox>
 #include <QStandardPaths>
 #include <QString>
 #include <QTabWidget>
@@ -92,6 +93,50 @@ struct PresetValues {
     // Pixel scaling: original screen resolution of the system
     double targetResX          = 0.0;   // 0 = disabled
     double targetResY          = 0.0;
+    // Historical text-mode character grid (columns × rows). Not derived from
+    // targetResX/Y — several machines shared a pixel resolution across
+    // different text grids (e.g. IBM PC 320x200 was 40x25 on a composite/TV
+    // preset but 80x25 on a direct-monitor one), so this needs its own,
+    // separately sourced value. 0 = no documented fixed grid for this machine
+    // (a GUI/bitmap system like the Mac 128K or Amiga, or sources conflict) —
+    // stays unset rather than being back-computed from pixel size, which
+    // reads as authoritative when it would actually just be a guess.
+    int    targetCols          = 0;
+    int    targetRows          = 0;
+    // Konsole colorscheme id for this preset (see SCHEME_DEFS in the .cpp) —
+    // colors are a terminal setting, exactly like the font: the shader can
+    // tint a monochrome phosphor, but "light blue on C64 blue" has to come
+    // from the terminal's own palette. Empty = leave the profile's scheme
+    // alone (preset makes no color claim).
+    QString scheme;
+};
+
+// ── Live voorbeeld van font + palet ──────────────────────────────────────────
+// Konsole leest een profiel alleen bij sessiestart, dus een geladen preset is
+// in een openstaand venster onzichtbaar. Dit widget tekent zelf een paar regels
+// terminaltekst met het font en de kleuren van de preset, zodat de keuze
+// meteen te zien is zonder dat er een terminal herstart hoeft te worden.
+// Het CRT-effect zelf zit hier bewust niet in: dat is een KWin-shader op
+// vensters, en die namaken zou een tweede implementatie zijn die uit de pas
+// kan gaan lopen met de echte.
+class PresetPreview : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit PresetPreview(QWidget *parent = nullptr);
+    // family/pixelSize: leeg/0 = terugvallen op de dialoogfont.
+    void setPreset(const QString &family, int pixelSize, int pointSize,
+                   const QColor &bg, const QColor &fg,
+                   const QList<QColor> &ansi);
+    QSize sizeHint() const override;
+protected:
+    void paintEvent(QPaintEvent *) override;
+private:
+    QString       m_family;
+    int           m_pixelSize = 0;
+    int           m_pointSize = 14;
+    QColor        m_bg = Qt::black, m_fg = Qt::white;
+    QList<QColor> m_ansi;
 };
 
 // ── Slider + spinbox combo ────────────────────────────────────────────────────
@@ -125,10 +170,16 @@ private:
     void      buildPresets();
     void      buildUI();
     QWidget  *buildGeneralTab();
-    QWidget  *buildPresetsTab();
-    QWidget  *buildFontsTab();
+    QWidget  *buildSetupTab();
+    QGroupBox *buildPresetSection();
+    QGroupBox *buildFontSection();
+    QGroupBox *buildScreenSection();
     QWidget  *buildEffectsTab();
     QGroupBox *makeGroup(const QString &title, QFormLayout *&layout);
+    // Wraps a tab page in a QScrollArea so it degrades gracefully on a short/
+    // constrained System Settings window instead of clipping silently — every
+    // tab gets this, not just the parameter-heavy Effects tab.
+    static QWidget *scrollWrap(QWidget *page);
     ParamRow  *addParam(QFormLayout *fl, const QString &label,
                         double min, double max, double step,
                         const QString &key, const QString &tip);
@@ -157,8 +208,33 @@ private:
     // A KWin effect post-processes pixels a terminal has already rasterized, so
     // it can never choose the font those glyphs were drawn with. The only way to
     // honour a preset's font is to write it into the terminal's own profile.
+    // cols/rows (0 = leave the profile's grid alone) sets Konsole's own
+    // TerminalColumns/TerminalRows so the *rendered* window actually spans the
+    // historical text grid, instead of an unrelated modern terminal size the
+    // shader's pixel-scaling then has to quantize through arbitrarily.
     void        refreshKonsoleProfiles();
-    bool        applyFontToKonsole(const QString &family, int pointSize, QString *error);
+    // fontPixelSize > 0 switches the profile's font to an exact pixel size
+    // (QFont pixelSize) instead of a point size — the difference between "a
+    // cell of whatever physical size 14pt happens to be" and "a cell of
+    // exactly native×k physical pixels", which the integer-zoom render path
+    // requires. Also zeroes the profile's TerminalMargin then, so the content
+    // area is exactly cols×cellW×k by rows×cellH×k with nothing added.
+    bool        applyFontToKonsole(const QString &family, int pointSize,
+                                    int cols, int rows, int fontPixelSize,
+                                    const QString &scheme, QString *error);
+    // Writes ~/.local/share/konsole/Phosphor <id>.colorscheme from SCHEME_DEFS
+    // (Konsole color schemes are plain user-writable INI files — no install
+    // step involved). Returns the scheme name to reference from a profile, or
+    // empty when the id is unknown.
+    QString     ensureColorScheme(const QString &id);
+    // Schrijft het Konsole-profiel voor de op dat moment geladen preset.
+    // Alleen aangeroepen vanuit save() buiten live preview om, zodat Cancel
+    // het profiel van de gebruiker ongemoeid laat.
+    void        commitKonsoleProfile();
+    void        updatePreview(const PresetValues &p);
+    // Largest integer zoom k that fits the preset's virtual screen on the
+    // current display, or 0 when the preset has no clean sourced grid+cell.
+    static int  zoomFor(const PresetValues &p, int minCols, bool authenticSize);
     bool        restoreKonsoleFont(QString *error);
     void        updateFontTabInfo();
 
@@ -177,15 +253,24 @@ private:
     QLabel       *m_terminalSummary  = nullptr;
 
     // ── Preset selector ───────────────────────────────────────────────────────
-    QComboBox   *m_presetCombo  = nullptr;
-    QPushButton *m_applyPreset  = nullptr;
-    QPushButton *m_applyKWin    = nullptr;
-    QLabel      *m_presetInfo   = nullptr;   // toont aanbevolen font + resolutie
+    QComboBox     *m_presetCombo = nullptr;
+    QPushButton   *m_applyKWin   = nullptr;
+    QLabel        *m_presetInfo  = nullptr;   // toont aanbevolen font + resolutie
+    PresetPreview *m_preview     = nullptr;   // font/kleuren, direct zichtbaar
 
     // ── Tabs + live preview ───────────────────────────────────────────────────
     QTabWidget  *m_tabs           = nullptr;
     QCheckBox   *m_livePreview    = nullptr;
     QTimer      *m_previewTimer   = nullptr;
+    // save() draait ook tijdens live preview. Het Konsole-profiel mag dan juist
+    // níét geschreven worden — dat hoort pas bij OK/Apply, anders is Cancel
+    // betekenisloos geworden zodra je één schuifje hebt aangeraakt.
+    bool         m_inLivePreview  = false;
+    // Er staat een preset klaar waarvan het Konsole-profiel nog geschreven moet
+    // worden. Live preview mag dit niet wegstrepen: doet het dat wel, dan meldt
+    // de module "niets te bewaren" en slaat System Settings save() bij OK
+    // helemaal over — waardoor het profiel nooit geschreven werd.
+    bool         m_profilePending = false;
 
     // ── Fonts-tab ─────────────────────────────────────────────────────────────
     QComboBox   *m_konsoleProfile = nullptr;
@@ -194,9 +279,14 @@ private:
     QCheckBox   *m_autoApplyFont  = nullptr;
     QLabel      *m_fontStatus     = nullptr;
     QLabel      *m_fontRecommend  = nullptr;
-    // Font van de laatst geladen preset; leeg zolang er geen preset geladen is.
+    // Font/grid van de laatst geladen preset; leeg/0 zolang er geen preset
+    // geladen is.
     QString      m_presetFont;
     int          m_presetFontSize = 14;
+    int          m_presetCols     = 0;
+    int          m_presetRows     = 0;
+    int          m_presetFontPx   = 0;   // pixel-exact font size (cell × k), 0 = use points
+    QString      m_presetScheme;         // colorscheme-id van de laatst geladen preset
 
     // ── Parameter widgets ─────────────────────────────────────────────────────
     QMap<QString, ParamRow *>       m_params;
@@ -212,6 +302,9 @@ private:
     QDoubleSpinBox *m_targetResX    = nullptr;
     QDoubleSpinBox *m_targetResY    = nullptr;
     QWidget       *m_targetResRow   = nullptr;  // zichtbaar als preset resolutie heeft
+    QSpinBox      *m_integerZoomSpin = nullptr; // 0 = uit, k>0 = bron-uitgelijnde zoom
+    QSpinBox      *m_minColumns      = nullptr; // kolom-ondergrens waaruit k volgt
+    QCheckBox     *m_authenticSize   = nullptr; // exact historisch raster forceren
 
     static constexpr const char *CFG_GROUP = "Effect-retro-terminal";
 };

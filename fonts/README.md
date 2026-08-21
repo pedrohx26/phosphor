@@ -14,7 +14,7 @@ the distro package manager, see the main README).
 | [`c64-pro-mono/`](c64-pro-mono/) | style64.org custom license (software-package clause) | C64 Pro Mono |
 | [`atari-classic/`](atari-classic/) | Freeware | Atari Classic |
 | [`amiga-topaz/`](amiga-topaz/) | GPL Font Exception | Topaz (Amiga) |
-| [`google-fonts/`](google-fonts/) | SIL OFL 1.1 | VT323, Share Tech Mono, Silkscreen |
+| [`google-fonts/`](google-fonts/) | SIL OFL 1.1 | VT323, Share Tech Mono, Silkscreen (Silkscreen no longer used by a preset — not monospaced) |
 | [`misc/`](misc/) | Public domain / see upstream | Bedstead, Glass TTY VT220 |
 
 Each directory carries its own `LICENSE.txt` (or `OFL-*.txt`) exactly as
@@ -30,8 +30,8 @@ from what their respective authors distribute.
 | DEC GT40 (1972) | VT323 | `google-fonts/VT323-Regular.ttf` |
 | DEC VT100 (1978) | VT323 | `google-fonts/VT323-Regular.ttf` |
 | IBM 3270 (1971) | Px437 IBM 3270pc | `int10h/Px437_IBM_3270pc.ttf` |
-| Wyse WY-50 (1979) | Px437 Wyse700b | `int10h/Px437_Wyse700b.ttf` |
-| Militair Radar (1965) | Share Tech Mono | `google-fonts/ShareTechMono-Regular.ttf` |
+| Wyse WY-50 (1983) | Px437 Wyse700b | `int10h/Px437_Wyse700b.ttf` |
+| Militair Radar (1958) | Share Tech Mono | `google-fonts/ShareTechMono-Regular.ttf` |
 | Apple II (1977) | Print Char 21 | `kreativekorp/PrintChar21.ttf` |
 | Commodore 64 (1982) | C64 Pro Mono | `c64-pro-mono/C64_Pro_Mono-STYLE.ttf` |
 | ZX Spectrum (1982) | VT323 | `google-fonts/VT323-Regular.ttf` |
@@ -40,17 +40,17 @@ from what their respective authors distribute.
 | IBM PC MDA (1981) | PxPlus IBM MDA | `int10h/PxPlus_IBM_MDA.ttf` |
 | IBM PC CGA (1981) | PxPlus IBM CGA | `int10h/PxPlus_IBM_CGA.ttf` |
 | IBM PC EGA (1984) | PxPlus IBM EGA 8x14 | `int10h/PxPlus_IBM_EGA_8x14.ttf` |
-| Tandy 1000 (1984) | PxPlus Tandy1K-II 200L | `int10h/PxPlus_Tandy1K-II_200L.ttf` |
+| Tandy 1000 (1984) | Px437 Tandy1K-I 200L | `int10h/Px437_Tandy1K-I_200L.ttf` |
 | IBM PS/2 VGA (1987) | PxPlus IBM VGA 9x16 | `int10h/PxPlus_IBM_VGA_9x16.ttf` |
 | Amiga 500 (1987) | Topaz a500a1000a2000 | `amiga-topaz/Topaz_a500_v1.0.ttf` |
-| Amiga WorkBench 2 (1990) | Topaz a500a1000a2000 | `amiga-topaz/Topaz_a500_v1.0.ttf` |
-| Apple Macintosh 128K (1984) | Silkscreen | `google-fonts/Silkscreen-Regular.ttf` |
+| Amiga WorkBench 2 (1990) | Topaz a600a1200a400 | `amiga-topaz/Topaz_a1200_v1.0.ttf` |
+| Apple Macintosh 128K (1984) | DejaVu Sans Mono | *(system font, not vendored)* |
 | NeXT Station (1990) | DejaVu Sans Mono | *(system font, not vendored)* |
 | SVGA Multisync (1992) | Terminus | *(distro package, not vendored)* |
 | Sony Trinitron (1997) | Terminus | *(distro package, not vendored)* |
 | Teletext / Ceefax (1974) | Bedstead | `misc/bedstead.otf` |
 | Minimaal (laag GPU) | Terminus | *(distro package, not vendored)* |
-| Commodore PET 2001 (1977) | Pet Me 2Y | `kreativekorp/PetMe2Y.ttf` |
+| Commodore PET 2001 (1977) | Pet Me | `kreativekorp/PetMe.ttf` |
 | TRS-80 Model I (1977) | Another Mans Treasure MIA Raw | `kreativekorp/AnotherMansTreasureMIARaw.ttf` |
 | TRS-80 Color Computer (1980) | Hot CoCo | `kreativekorp/HotCoCo.ttf` |
 | Kaypro II (1982) | Px437 Kaypro2K G | `int10h/Px437_Kaypro2K_G.ttf` |
@@ -58,14 +58,14 @@ from what their respective authors distribute.
 | DEC Rainbow 100 (1982) | PxPlus Rainbow100 re.40 | `int10h/PxPlus_Rainbow100_re_40.ttf` |
 | TeleVideo TVI-925 (1982) | Px437 Wyse700b | `int10h/Px437_Wyse700b.ttf` |
 | Apple Lisa (1983) | LisaTerminal Paper Raw | `kreativekorp/LisaTerminalPaperRaw.ttf` |
-| Amstrad PC1512 (1986) | PxPlus Amstrad PC-2y | `int10h/PxPlus_Amstrad_PC-2y.ttf` |
+| Amstrad PC1512 (1986) | PxPlus Amstrad PC | `int10h/PxPlus_Amstrad_PC.ttf` |
 | Atari ST SM124 (1985) | Project Jason Small | `kreativekorp/ProjectJasonSmall.ttf` |
-| NEC APC III (1983) | Px437 NEC APC3 8x16 | `int10h/Px437_NEC_APC3_8x16.ttf` |
+| NEC APC III (1984) | Px437 NEC APC3 8x16 | `int10h/Px437_NEC_APC3_8x16.ttf` |
 | HP 150 Touchscreen (1983) | PxPlus HP 150 re. | `int10h/PxPlus_HP_150_re.ttf` |
-| Apple IIgs (1986) | Shaston 320 | `kreativekorp/Shaston320.ttf` |
+| Apple IIgs (1986) | Print Char 21 | `kreativekorp/PrintChar21.ttf` |
 | Sharp MZ-700 (1982) | Mizuno | `kreativekorp/Mizuno.ttf` |
 | Mattel Aquarius (1983) | Antiquarius | `kreativekorp/Antiquarius.ttf` |
-| Commodore VIC-20 (1981) | C64 Pro Mono | `c64-pro-mono/C64_Pro_Mono-STYLE.ttf` |
+| Commodore VIC-20 (1981) | Pet Me | `kreativekorp/PetMe.ttf` |
 | MSX (1983) | VT323 | `google-fonts/VT323-Regular.ttf` |
 | Sun-3 Workstation (1985) | DejaVu Sans Mono | *(system font, not vendored)* |
 
@@ -83,3 +83,32 @@ point at the closest actually-shipped variant (usually the plain `Px437`
 release of the same machine). `PxPlus TeleVideo TVI-925` doesn't exist under
 any name in the pack at all — the TeleVideo TVI-925 preset now reuses
 `Px437 Wyse700b` (same era, same green P1 CRT terminal class).
+
+## Known substitutions — fonts that are not the machine's own
+
+A font audit checked all 43 presets against the int10h and Kreative Korp
+catalogues and, for the Commodore machines, against character-ROM dumps. Seven
+presets were corrected as a result (see the git history), and the following
+are knowingly still not authentic. They are listed rather than quietly left,
+because a substitution that isn't written down eventually gets mistaken for a
+researched choice — which is exactly how several wrong values entered this
+project in the first place.
+
+| Preset | Font used | Why it is not authentic |
+|---|---|---|
+| ZX Spectrum (1982) | VT323 | VT323 recreates a DEC VT320. Kreative Korp ships a real `Speccy` font; it is simply not vendored yet, so this is fixable. |
+| MSX (1983) | VT323 | Neither vendored pack contains an MSX/TMS9918 font. Recreations exist but none with verified licence and fidelity. |
+| IBM 2260 (1964) | Glass TTY VT220 | A DEC VT220 font on a 1964 IBM mainframe display — wrong vendor and about twenty years early. No 2260 recreation was found to exist. |
+| Kaypro II (1982) | Px437 Kaypro2K G | int10h's font is from the **Kaypro 2000**, a 1985 PC-compatible laptop, not the 1982 CP/M luggable. Name collision, different machine. |
+| Compaq Portable (1982) | Px437 Compaq Port3 | int10h's font is from the Portable III/386 (1987), an orange plasma panel, not the 9-inch green CRT of 1982. |
+| TeleVideo TVI-925 (1982) | Px437 Wyse700b | No TeleVideo 925 font exists in either pack; a same-era terminal font stands in. |
+| Wyse WY-50 (1983) | Px437 Wyse700b | Right vendor, wrong product: the font is from the WY-700 graphics adapter, not the WY-50 terminal. |
+| IBM 3270 (1971) | Px437 IBM 3270pc | From the 3270 PC (1983), twelve years after the terminal this preset depicts. Closest available. |
+| DEC VT100 (1978) / GT40 (1972) | VT323 | VT323 is built from VT320 glyphs (1987). The GT40 had a vector stroke generator and no raster font at all, so nothing could be authentic there. |
+| BBC Micro (1981) | Bedstead | Bedstead is the SAA5050 teletext chargen, authentic for MODE 7 only; this preset's 40×32 grid is MODE 4/5, which used the OS ROM font. |
+| Macintosh 128K, NeXT, Sun-3 | DejaVu Sans Mono | Bitmap-GUI machines with no character ROM. Apple's Monaco and NeXT's Ohlfs are not redistributable, so a generic monospace is the honest choice. |
+| Atari ST SM124 (1985) | Project Jason Small | The audit proposed `Project Jason Tall` as the 8×16 high-res variant, but measurement showed Tall has 58 distinct advance widths — it is not monospaced and would not lay out on a grid. `Small` is kept deliberately. |
+
+Fonts are also checked mechanically: `tools/check-presets.py` fails the build
+on any preset whose font is known not to be monospaced, since such a font
+cannot produce an even character grid no matter how authentic it is.

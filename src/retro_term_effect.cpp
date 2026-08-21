@@ -98,6 +98,7 @@ void RetroTermEffect::loadConfig()
     m_targetResX  = (float)cfg.readEntry("targetResX", 320.0);
     m_targetResY  = (float)cfg.readEntry("targetResY", 200.0);
     m_sampleMode  = cfg.readEntry("sampleMode", 2);
+    m_integerZoom = cfg.readEntry("integerZoom", 0);
 
     m_contentInsetTop    = cfg.readEntry("contentInsetTop",    0);
     m_contentInsetBottom = cfg.readEntry("contentInsetBottom", 0);
@@ -289,6 +290,7 @@ void RetroTermEffect::apply(EffectWindow *w, int mask, WindowPaintData &data, Wi
     m_shader->setUniform("pixelScale",          m_pixelScale);
     m_shader->setUniform("targetRes",           QVector2D(m_targetResX, m_targetResY));
     m_shader->setUniform("sampleMode",          m_sampleMode);
+    m_shader->setUniform("integerZoom",         m_integerZoom);
 
     ShaderManager::instance()->popShader();
 
