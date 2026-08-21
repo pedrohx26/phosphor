@@ -175,6 +175,7 @@ private:
     QGroupBox *buildFontSection();
     QGroupBox *buildScreenSection();
     QWidget  *buildEffectsTab();
+    QWidget  *buildAboutTab();
     QGroupBox *makeGroup(const QString &title, QFormLayout *&layout);
     // Wraps a tab page in a QScrollArea so it degrades gracefully on a short/
     // constrained System Settings window instead of clipping silently — every

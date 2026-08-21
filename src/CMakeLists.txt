@@ -127,6 +127,11 @@ set_target_properties(kwin_retro_term_config PROPERTIES
 # translations could never be found.
 target_compile_definitions(kwin_retro_term_config PRIVATE
     TRANSLATION_DOMAIN="kwin_retro_term"
+    # Taken from project(... VERSION ...) rather than written out again in the
+    # About tab. A hand-copied version string is exactly the kind of value that
+    # quietly stops matching reality, which this project has been bitten by
+    # often enough already.
+    PHOSPHOR_VERSION="${PROJECT_VERSION}"
 )
 
 # ── Installation ──────────────────────────────────────────────────────────────

@@ -841,6 +841,7 @@ void RetroTermKCM::buildUI()
     // regardless, for the sidebar+stack layout) — wrapping it again would just
     // nest two scroll areas around the same content for no benefit.
     m_tabs->addTab(buildEffectsTab(), i18n("Effects"));
+    m_tabs->addTab(scrollWrap(buildAboutTab()), i18n("About"));
     outerVBox->addWidget(m_tabs, 1);
 
     // ── Voettekst: live preview + handmatige apply ────────────────────────────
@@ -1232,6 +1233,77 @@ QGroupBox *RetroTermKCM::buildFontSection()
     refreshKonsoleProfiles();
     updateFontTabInfo();
     return gb;
+}
+
+// ── Tabblad: Over ─────────────────────────────────────────────────────────────
+// PHOSPHOR_VERSION komt uit project(... VERSION ...) in CMakeLists.txt; de
+// fallback is er alleen zodat de code ook buiten dat buildsysteem compileert.
+#ifndef PHOSPHOR_VERSION
+#define PHOSPHOR_VERSION "unknown"
+#endif
+
+QWidget *RetroTermKCM::buildAboutTab()
+{
+    auto *page = new QWidget;
+    auto *vb   = new QVBoxLayout(page);
+    vb->setSpacing(12);
+
+    auto *title = new QLabel(i18n("<h2>Phosphor — Retro Terminal (CRT)</h2>"));
+    title->setTextFormat(Qt::RichText);
+    vb->addWidget(title);
+
+    QFormLayout *fl = nullptr;
+    auto *gb = makeGroup(i18n("Version and source"), fl);
+
+    auto *ver = new QLabel(QStringLiteral("<b>%1</b>")
+                               .arg(QLatin1String(PHOSPHOR_VERSION)));
+    ver->setTextFormat(Qt::RichText);
+    fl->addRow(i18n("Version:"), ver);
+
+    // openExternalLinks lets the label handle the click itself; without it the
+    // URL is styled like a link and does nothing when pressed.
+    auto *repo = new QLabel(QStringLiteral(
+        "<a href=\"https://github.com/pedrohx26/phosphor\">"
+        "github.com/pedrohx26/phosphor</a>"));
+    repo->setTextFormat(Qt::RichText);
+    repo->setOpenExternalLinks(true);
+    repo->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    fl->addRow(i18n("Source:"), repo);
+
+    auto *author = new QLabel(QStringLiteral(
+        "<a href=\"https://github.com/pedrohx26\">pedrohx26</a>"));
+    author->setTextFormat(Qt::RichText);
+    author->setOpenExternalLinks(true);
+    author->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    fl->addRow(i18n("Author:"), author);
+
+    fl->addRow(i18n("License:"), new QLabel(QStringLiteral("GPL-2.0-or-later")));
+    vb->addWidget(gb);
+
+    auto *what = new QLabel(i18n(
+        "Simulates a CRT phosphor display on terminal windows: scanlines, "
+        "bloom, barrel curvature, phosphor persistence and colour, sync "
+        "artifacts, and warmup and degauss animations.<br><br>"
+        "The 43 historical presets carry researched hardware data — screen "
+        "resolution, text grid, colour palette and typeface. Where a value "
+        "could not be sourced it is left unset rather than guessed, and the "
+        "substitutions that remain are listed in <code>fonts/README.md</code>."));
+    what->setWordWrap(true);
+    what->setTextFormat(Qt::RichText);
+    vb->addWidget(what);
+
+    auto *credits = new QLabel(i18n(
+        "Bundled fonts come from the int10h.org Oldschool PC Font Pack "
+        "(CC BY-SA 4.0), Kreative Korp's retro font collection, style64.org's "
+        "C64 Pro Mono, the amigafonts Topaz conversions, and Google Fonts "
+        "(SIL OFL). Each directory under <code>fonts/</code> carries its own "
+        "licence text."));
+    credits->setWordWrap(true);
+    credits->setTextFormat(Qt::RichText);
+    vb->addWidget(credits);
+
+    vb->addStretch();
+    return page;
 }
 
 // ── Tabblad: Effecten ─────────────────────────────────────────────────────────
