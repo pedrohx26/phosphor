@@ -1014,6 +1014,60 @@ QWidget *RetroTermKCM::buildGeneralTab()
         outerVBox->addWidget(mgb);
     }
 
+    {
+        // KWin sees one window: the terminal grid and the toolkit's own toolbar,
+        // tab bar and scrollbar are all the same texture, so the effect covers
+        // buttons and labels along with the text. There is no way to ask the
+        // window where its terminal widget ends — that geometry lives inside the
+        // application and is never published. A margin in pixels is therefore the
+        // honest interface: whatever falls inside it is passed through byte for
+        // byte, exactly as KWin drew it.
+        auto *gb   = new QGroupBox(i18n("Leave the terminal's own chrome alone"));
+        auto *vb   = new QVBoxLayout(gb);
+        vb->setSpacing(6);
+
+        auto *why = new QLabel(i18n(
+            "A toolbar, tab bar or scrollbar is part of the same window as the "
+            "terminal, so it gets the CRT treatment too. Excluded margins are "
+            "drawn untouched."));
+        why->setWordWrap(true);
+        vb->addWidget(why);
+
+        auto *grid = new QHBoxLayout;
+        grid->setSpacing(12);
+        auto addInset = [&](const QString &label, QSpinBox *&sb, const QString &tip) {
+            sb = new QSpinBox;
+            sb->setRange(0, 400);
+            sb->setSuffix(i18n(" px"));
+            sb->setToolTip(tip);
+            auto *cell = new QHBoxLayout;
+            cell->setSpacing(4);
+            cell->addWidget(new QLabel(label));
+            cell->addWidget(sb);
+            grid->addLayout(cell);
+            connect(sb, QOverload<int>::of(&QSpinBox::valueChanged),
+                    this, &RetroTermKCM::markChanged);
+        };
+        addInset(i18n("Top:"),    m_insetTop,
+                 i18n("Konsole's tab bar and menu sit here when they are shown."));
+        addInset(i18n("Bottom:"), m_insetBottom,
+                 i18n("Konsole's main toolbar sits here when it is docked at the bottom."));
+        addInset(i18n("Left:"),   m_insetLeft,   i18n("Rarely needed."));
+        addInset(i18n("Right:"),  m_insetRight,
+                 i18n("The scrollbar sits here in Konsole's default layout."));
+        grid->addStretch();
+        vb->addLayout(grid);
+
+        auto *hint = new QLabel(i18n(
+            "Not sure of the height? Hiding the bar is the other way out — in "
+            "Konsole: Settings ▸ Toolbars Shown."));
+        hint->setWordWrap(true);
+        hint->setStyleSheet(QStringLiteral("color: palette(disabled-text);"));
+        vb->addWidget(hint);
+
+        outerVBox->addWidget(gb);
+    }
+
     outerVBox->addStretch();
     return page;
 }
@@ -2265,6 +2319,12 @@ void RetroTermKCM::load()
     if (m_minColumns)       m_minColumns->setValue(cfg.readEntry("minColumns", 80));
     if (m_authenticSize)    m_authenticSize->setChecked(cfg.readEntry("authenticSize", false));
 
+    // Onaangeroerde randen
+    if (m_insetTop)    m_insetTop->setValue(cfg.readEntry("contentInsetTop",       0));
+    if (m_insetBottom) m_insetBottom->setValue(cfg.readEntry("contentInsetBottom", 0));
+    if (m_insetLeft)   m_insetLeft->setValue(cfg.readEntry("contentInsetLeft",     0));
+    if (m_insetRight)  m_insetRight->setValue(cfg.readEntry("contentInsetRight",   0));
+
     // Every setValue() above ran through markChanged(), so the live-preview timer
     // is now armed to write back the exact values just read and reload the effect
     // for nothing. Opening the KCM is not a change.
@@ -2320,6 +2380,11 @@ void RetroTermKCM::save()
     // welke k "Load preset" kiest en of het raster opgelegd wordt.
     if (m_minColumns)       grp.writeEntry("minColumns",    m_minColumns->value());
     if (m_authenticSize)    grp.writeEntry("authenticSize", m_authenticSize->isChecked());
+
+    if (m_insetTop)    grp.writeEntry("contentInsetTop",    m_insetTop->value());
+    if (m_insetBottom) grp.writeEntry("contentInsetBottom", m_insetBottom->value());
+    if (m_insetLeft)   grp.writeEntry("contentInsetLeft",   m_insetLeft->value());
+    if (m_insetRight)  grp.writeEntry("contentInsetRight",  m_insetRight->value());
 
     // This KCM is reached by clicking the effect's own config icon in Desktop
     // Effects, which implies it's already enabled there — but it's just as

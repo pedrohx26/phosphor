@@ -307,5 +307,11 @@ private:
     QSpinBox      *m_minColumns      = nullptr; // kolom-ondergrens waaruit k volgt
     QCheckBox     *m_authenticSize   = nullptr; // exact historisch raster forceren
 
+    // Randen die het effect ongemoeid laat — werkbalk, tabbalk, schuifbalk
+    QSpinBox      *m_insetTop        = nullptr;
+    QSpinBox      *m_insetBottom     = nullptr;
+    QSpinBox      *m_insetLeft       = nullptr;
+    QSpinBox      *m_insetRight      = nullptr;
+
     static constexpr const char *CFG_GROUP = "Effect-retro-terminal";
 };
