@@ -229,6 +229,34 @@ def check(p, err, warn, note):
         warn(n, "no colour scheme — the terminal keeps whatever palette it had")
 
 
+def check_installer(presets, err):
+    """The font installer keeps its own list of fonts to verify. It drifted.
+
+    install-fonts.sh's FMAP drives --status, and after seven preset fonts were
+    replaced it still named the old ones — so it reported "31/31 installed"
+    while checking for fonts no preset uses any more, and checking none of the
+    new ones. A status report that passes for the wrong reason is worse than
+    no report, so the two lists are compared here.
+    """
+    sh = SRC.parent.parent / "install-fonts.sh"
+    if not sh.exists():
+        return
+    listed = set(re.findall(r'FMAP\["([^"]+)"\]', sh.read_text()))
+    if not listed:
+        return
+    # Installed by the distro or already present system-wide; the installer
+    # names these but never vendors them.
+    external = {"DejaVu Sans Mono", "Terminus"}
+    used = {p["font"] for p in presets} - external
+
+    for font in sorted(used - listed):
+        err("install-fonts.sh", f"preset font '{font}' missing from FMAP — "
+                                "--status never checks it")
+    for font in sorted(listed - used - external):
+        err("install-fonts.sh", f"FMAP lists '{font}', which no preset uses — "
+                                "--status verifies a font nothing needs")
+
+
 def main():
     quiet = "--quiet" in sys.argv
     presets = parse(SRC)
@@ -239,6 +267,7 @@ def main():
                  lambda n, m: notes.append((n, m)))
     for p in presets:
         check(p, *check_fns)
+    check_installer(presets, check_fns[0])
 
     # Cross-preset: schemes and fonts should be reused deliberately, not by
     # accident. Reuse is legitimate (four DOS machines really did share the
